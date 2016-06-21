@@ -1,0 +1,35 @@
+{
+  "name": "save-payslips",
+  "version": "1.0.0",
+  "description": "Automatically save my payslips from Portus to my google drive",
+  "main": "index.js",
+  "scripts": {
+    "start": "sh scripts/start.sh",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nigelsdtech/save-payslips.git"
+  },
+  "keywords": [
+    "Portus",
+    "Google",
+    "Drive"
+  ],
+  "author": "Nigel Stephen D'Souza",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nigelsdtech/save-payslips/issues"
+  },
+  "homepage": "https://github.com/nigelsdtech/save-payslips#readme",
+  "dependencies": {
+    "config": "1.20.1",
+    "email-notification": "github:nigelsdtech/email-notification",
+    "log4js": "0.6.36",
+    "request": "2.72.0"
+  },
+  "config": {
+    "appName": "save-payslips",
+    "googleAuthScopes": "https://www.googleapis.com/auth/gmail.modify"
+  }
+}
