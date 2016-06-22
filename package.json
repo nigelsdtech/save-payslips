@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "sh scripts/start.sh",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "sh scripts/test.sh"
   },
   "repository": {
     "type": "git",
@@ -23,13 +23,18 @@
   },
   "homepage": "https://github.com/nigelsdtech/save-payslips#readme",
   "dependencies": {
-    "config": "1.20.1",
-    "email-notification": "github:nigelsdtech/email-notification",
-    "log4js": "0.6.36",
-    "request": "2.72.0"
+    "config": "^1.20.x",
+    "email-notification": "github:nigelsdtech/email-notification#v1.0.0",
+    "log4js": "^0.6.x",
+    "request": "^2.72.x"
   },
   "config": {
     "appName": "save-payslips",
-    "googleAuthScopes": "https://www.googleapis.com/auth/gmail.modify"
+    "work": {
+      "googleAuthScopes": "https://www.googleapis.com/auth/gmail.modify"
+    },
+    "personal": {
+      "googleAuthScopes": "https://www.googleapis.com/auth/drive.file"
+    }
   }
 }

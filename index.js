@@ -36,26 +36,6 @@ log.info('============');
 
 
 
-function handleError (errMsg) {
-
-  var emailContent = "Error running payslip uploader " + emailMonth.toDateString();
-     emailContent += '<p>'+errMsg;
-
-  mailer.sendEmail({
-    content: emailContent
-  }, function(err) {
-
-    if (err) {
-      var errMsg = 'handleError: Error sending email: ' + err;
-      log.error(errMsg)
-      return null;
-    }
-  });
-
-
-}
-
-
 
 try {
 
@@ -69,7 +49,7 @@ try {
       handleError(errMsg)
       return null;
     }
- 
+
     if (!isProcessingRequired) {
       log.info('Processing isn\'t required. Ending program.')
       return null;
