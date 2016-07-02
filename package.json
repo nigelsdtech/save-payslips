@@ -24,17 +24,22 @@
   "homepage": "https://github.com/nigelsdtech/save-payslips#readme",
   "dependencies": {
     "config": "^1.20.x",
-    "email-notification": "github:nigelsdtech/email-notification#v1.0.0",
-    "log4js": "^0.6.x",
-    "request": "^2.72.x"
+    "email-notification": "git://github.com/nigelsdtech/email-notification.git#03202931de2774d061d260173ecc96e1135d629c",
+    "gdrive-model": "git://github.com/nigelsdtech/gdrive-model.git#b8bd86a7f7a2e014a858b7b3c58f6afa16324e31",
+    "inherits": "2.0.1",
+    "log4js": "0.6.37",
+    "portus-interact": "git://github.com/nigelsdtech/portus-interact.git#1a0638369a26057bb65b34240b60d9b2ee3e7957",
+    "request": "^2.72.x",
+    "rewire": "2.5.1",
+    "sinon": "1.17.4"
   },
   "config": {
-    "appName": "save-payslips",
-    "work": {
-      "googleAuthScopes": "https://www.googleapis.com/auth/gmail.modify"
-    },
-    "personal": {
-      "googleAuthScopes": "https://www.googleapis.com/auth/drive.file"
-    }
+    "appName": "save-payslips"
+  },
+  "devDependencies": {
+    "chai": "3.5.0",
+    "gmail-model": "git://github.com/nigelsdtech/gmail-model.git#a922af760728dececb3f6891fd8e4c723705b1fb",
+    "sinon": "1.17.4",
+    "sinon-chai": "2.8.0"
   }
 }

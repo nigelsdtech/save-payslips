@@ -5,4 +5,4 @@
 appname=${PWD##*/}
 
 node index.js \
-	--NODE_APP_INSTANCE="$appname";
+	--NODE_APP_DEPLOYMENT="$appname";
