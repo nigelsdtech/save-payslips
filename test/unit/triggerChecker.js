@@ -32,17 +32,19 @@ describe('The trigger checker', function () {
 
   this.timeout(timeout);
 
+  var revert;
+
   before(function (done) {
 
 
     // Stub out external modules
 
     var stubs = cfg.test.commonStubs
-    stubs.en = {
+    tc.__set__(stubs);
+    tc.__set__('en', {
       hasBeenReceived: stubFn,
       hasBeenProcessed: stubFn
-    }
-    tc.__set__(stubs);
+    });
 
     done();
 

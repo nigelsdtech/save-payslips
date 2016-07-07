@@ -35,9 +35,9 @@ describe('The Portus interactor', function () {
     // Stub out external modules
 
     var stubs = cfg.test.commonStubs
-    stubs.PortusInteract = stubFn
-    stubs.portus = stubFn
     psg.__set__(stubs);
+    psg.__set__('PortusInteract', stubFn);
+    psg.__set__('portus', stubFn);
 
     done();
 
@@ -56,4 +56,16 @@ describe('The Portus interactor', function () {
     });
 
   });
+
+
+  after(function (done) {
+
+    // Stub out rewire and its globals
+    psg = null
+    rewire = null
+
+    done();
+
+  });
+
 });

@@ -20,7 +20,8 @@ module.exports = {
   drive: {
     personal: {
       scopes: 'https://www.googleapis.com/auth/drive'
-    }
+    },
+    payslipsFolderName: 'Payslips'
   },
 
   mailbox: {
@@ -39,7 +40,7 @@ module.exports = {
   notificationEmail : {
     stubEmail: false,
     to:        process.env.PERSONAL_DISPLAY_NAME+" <"+process.env.PERSONAL_EMAIL_ADDRESS+">",
-    subject:   "Payslip Saver Report %s"
+    subject:   "Payslip Saver Report"
   },
 
   portus : {

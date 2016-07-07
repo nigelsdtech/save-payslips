@@ -28,16 +28,14 @@ describe('The drive uploader', function () {
 
   this.timeout(timeout);
 
-
   before(function (done) {
 
     // Stub out external modules
 
-    var stubs = cfg.test.commonStubs
-    stubs.g           = stubFn
-    stubs.GdriveModel = stubFn
-    stubs.path        = { basename: function () {return 'stub'} }
+    var stubs = cfg.test.commonStubs;
     drive.__set__(stubs);
+    drive.__set__('GdriveModel', stubFn);
+    drive.__set__('path', { basename: function () {return 'stub'} } );
 
     done();
 
@@ -100,4 +98,5 @@ describe('The drive uploader', function () {
     });
 
   });
+
 });
