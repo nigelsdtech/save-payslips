@@ -48,9 +48,9 @@ module.exports = {
     password: process.env.PORTUS_PASSWORD
   },
 
-  gmailSearchCriteria: "newer_than:7d from:Payslip4u subject:'Document Uploaded'",
+  gmailSearchCriteria: 'newer_than:7d from:Payslip4u subject:"Document Uploaded"',
   processedLabelName:  defer( function (cfg) { return cfg.appName+'-Processed' } ),
   applyLabelToProcessedEmail: true,
   markEmailAsRead: true
 
-} 
+}
