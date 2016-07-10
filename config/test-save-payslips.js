@@ -23,15 +23,15 @@ module.exports = {
     payslipsFolderName: defer( function(cfg) { var d = new Date(); return "Test folder " + cfg.appName + " - " + d.toString() } )
   },
 
-  gmailSearchCriteria: defer( function (cfg) { return "newer_than:1d is:unread from:" + cfg.test.triggerEmail.from + " subject:'" +  cfg.test.triggerEmail.subject + "'" } ),
+  gmailSearchCriteria: defer( function (cfg) { return "newer_than:1d is:unread from:" + process.env.PERSONAL_EMAIL_ADDRESS + " subject:'Document Uploaded'" } ),
 
   mailbox: {
     personal: {
-      emailAddress: process.env.PERSONAL_EMAIL,
+      emailAddress: process.env.PERSONAL_EMAIL_ADDRESS,
       scopes: 'https://mail.google.com'
     },
     work: {
-      emailAddress: process.env.OB_EMAIL,
+      emailAddress: process.env.OB_EMAIL_ADDRESS,
       scopes: 'https://mail.google.com'
     }
   },
@@ -45,10 +45,9 @@ module.exports = {
   test: {
     triggerEmail: {
       from: process.env.PERSONAL_EMAIL_ADDRESS,
-      subject: defer( function (cfg) { return 'Document Uploaded (' + cfg.appName+ ')' } ),
+      subjecta: defer( function (cfg) { return 'Document Uploaded (' + cfg.appName+ ')' } ),
       to: process.env.OB_EMAIL_ADDRESS
     }
   }
-
 
 }

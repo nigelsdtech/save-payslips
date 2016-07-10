@@ -28,7 +28,7 @@ module.exports = {
           type: "console"
         }
       ],
-      replaceConsole: true
+      replaceConsole: false
     },
     logDir: "./logs"
   }

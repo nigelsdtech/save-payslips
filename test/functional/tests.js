@@ -58,7 +58,7 @@ var personalGdrive = new gdriveModel({
 
 
 
-var timeout = (1000*20)
+var timeout = (1000*60)
 
 
 /*
@@ -122,11 +122,8 @@ describe('Running the script with the happy path', function () {
 
       sendTriggerMessage ( function (err, msg) {
         if (err) throw new Error(err);
-        try { SavePayslips(); }
+        try { SavePayslips(done); }
         catch (e) { throw e }
-        finally {
-            done();
-        }
       });
     });
   });
@@ -139,7 +136,7 @@ describe('Running the script with the happy path', function () {
     }, function (err, retFiles) {
       retFiles.length.should.equal(1);
       retFiles[0].parents[0].id.should.equal(payslipsFolderId)
-
+      done();
     });
   });
 
@@ -188,14 +185,14 @@ describe('Running the script with the happy path', function () {
     personalGmail.listMessages ({
       freetextSearch: 'is:sent from:me to:' + cfg.test.triggerEmail.to + ' newer_than:1d subject:"' + cfg.test.triggerEmail.subject + '"'
     }, function (err, messages) {
-      if (err) throw new Error(err);
+      if (err) console.error('Error trashing trigger email sent by trigger sender');
       for (var i = 0; i < messages.length; i++ ) { personalGmailMessagesToTrash.push(messages[i].id) }
 
       // Trash the trigger email received
       workGmail.listMessages ({
         freetextSearch: 'from:' + cfg.mailbox.personal.emailAddress + ' to:me newer_than:1d subject:"' + cfg.test.triggerEmail.subject + '"'
       }, function (err, messages) {
-        if (err) throw new Error(err);
+        if (err) console.error('Error trashing trigger email received');
         for (var i = 0; i < messages.length; i++ ) { workGmailMessagesToTrash.push(messages[i].id) }
 
         // Delete the created payslips folder
@@ -208,27 +205,27 @@ describe('Running the script with the happy path', function () {
           workGmail.listMessages ({
             freetextSearch: 'is:sent from:me to:' + cfg.mailbox.personal.emailAddress + ' newer_than:1d subject:"' + cfg.notificationEmail.subject + '"'
           }, function (err, messages) {
-            if (err) throw new Error(err);
+            if (err) console.error('Error trashing notification email sent by work address');
             for (var i = 0; i < messages.length; i++ ) { workGmailMessagesToTrash.push(messages[i].id) }
 
             // Trash the notification email received by personal address
             personalGmail.listMessages ({
               freetextSearch: 'from:' + cfg.mailbox.work.emailAddress + ' to:me newer_than:1d subject:"' + cfg.notificationEmail.subject + '"'
             }, function (err, messages) {
-              if (err) throw new Error(err);
+              if (err) console.error('Error trashing notification received by personal address');
               for (var i = 0; i < messages.length; i++ ) { personalGmailMessagesToTrash.push(messages[i].id) }
 
 	      // Send off the actual deletions - personal
               personalGmail.trashMessages ({
                 messageIds: personalGmailMessagesToTrash
               }, function (err, messages) {
-                if (err) throw new Error(err);
+                if (err) console.error('Error actually deleting personal emails - %s - %s', err, personalGmailMessagesToTrash);
 
 	        // Send off the actual deletions - work
                 workGmail.trashMessages ({
                   messageIds: workGmailMessagesToTrash
                 }, function (err, messages) {
-                  if (err) throw new Error(err);
+                  if (err) console.error('Error actually deleting work emails - %s - %s', err, workGmailMessagesToTrash);
                   done();
                 }); // Send off the actual deletions - work
               }); // Send off the actual deletions - personal
