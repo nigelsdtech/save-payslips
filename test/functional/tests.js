@@ -5,6 +5,7 @@ var cfg          = require('config'),
     gdriveModel  = require('gdrive-model'),
     gmailModel   = require('gmail-model'),
     rewire       = require('rewire'),
+    sinon        = require('sinon'),
     SavePayslips = rewire('../../lib/SavePayslips.js');
 
 /*
@@ -69,8 +70,8 @@ function sendTriggerMessage (cb) {
 
   personalGmail.sendMessage ({
     body    : "Start the payslip saver",
-    subject : cfg.test.triggerEmail.subject,
-    to      : cfg.test.triggerEmail.to
+    subject : "Document Uploaded",
+    to      : cfg.mailbox.work.emailAddress
   }, function (err, message) {
 
     if (err) { cb(err); return null; }
@@ -108,11 +109,11 @@ function createTestFolder (cb) {
  * The actual tests
  */
 
-describe('Running the script with the happy path', function () {
+describe('Running the script when processing is required', function () {
 
   this.timeout(timeout);
 
-  var payslipsFolderId;
+  var payslipsFolderId, processedLabelId;
 
   before(function (done) {
 
@@ -120,10 +121,17 @@ describe('Running the script with the happy path', function () {
       if (err) throw new Error(err);
       payslipsFolderId = folder.id;
 
-      sendTriggerMessage ( function (err, msg) {
+      workGmail.getLabelId ({
+        labelName: cfg.processedLabelName,
+        createIfNotExists: true
+      }, function (err, labelId) {
         if (err) throw new Error(err);
-        try { SavePayslips(done); }
-        catch (e) { throw e }
+        processedLabelId=labelId
+
+        sendTriggerMessage ( function (err, msg) {
+          if (err) throw new Error(err);
+          setTimeout(SavePayslips, 2000, done);
+        });
       });
     });
   });
@@ -131,43 +139,51 @@ describe('Running the script with the happy path', function () {
 
   it('uploads the payslip to the recipient\'s google drive under the Payslips folder', function (done) {
     personalGdrive.listFiles({
-      freetextSearch: "fullText contains '"+cfg.get.payslipsFolderName+"'",
+      freetextSearch: '"' + payslipsFolderId + '" in parents',
       spaces: "drive"
     }, function (err, retFiles) {
       retFiles.length.should.equal(1);
-      retFiles[0].parents[0].id.should.equal(payslipsFolderId)
+      retFiles[0].mimeType.should.equal('application/pdf')
       done();
     });
   });
 
-  /*
+
   it('sends a notification email to the personal account with a link to the uploaded payslip', function (done) {
 
     personalGmail.listMessages({
-      freetextSearch: 'is:unread newer_than:1d subject:"' + cfg.notificationEmail.subject + '"',
+      freetextSearch: 'is:unread from:me to:me newer_than:1d subject:"' + cfg.notificationEmail.subject + '"',
       maxResults: 1
     }, function (err, messages) {
       if (err) { throw err }
 
       messages.length.should.equal(1)
+      done();
+    })
+    
+  });
 
-      personalGmail.getMessage({
-        messageId: messages[0].id
-      }, function (err, message) {
+  it('marks the trigger email as read and processed', function(done) {
+
+    workGmail.listMessages({
+      freetextSearch: 'from:' + cfg.mailbox.personal.emailAddress + ' to:me newer_than:1d subject:"Document Uploaded"',
+      maxResults: 1
+    }, function (err, messages) {
+      if (err) { throw err }
+      if (messages.length == 0) { throw new Error ('Trigger email not found') }
+
+      workGmail.getMessage({ messageId: messages[0].id }, function (err, message) {
+
         if (err) { throw err }
-
+        message.should.have.property('labelIds');
+        message.labelIds.should.include(processedLabelId);
+        message.labelIds.should.not.include('UNREAD');
 	done();
-      });
-    }
+      })
+
+    })
   });
 
-  it('marks the trigger email as read and processed', function (done) {
-	done();
-  });
-
-
-
-  */
 
 
   after(function (done) {
@@ -181,19 +197,19 @@ describe('Running the script with the happy path', function () {
     var workGmailMessagesToTrash     = [];
     var personalGmailMessagesToTrash = [];
 
-    // Trash the trigger email sent by the trigger sender
+    // Personal account: Identify sent trigger email
     personalGmail.listMessages ({
-      freetextSearch: 'is:sent from:me to:' + cfg.test.triggerEmail.to + ' newer_than:1d subject:"' + cfg.test.triggerEmail.subject + '"'
+      freetextSearch: 'is:sent from:me to:' + cfg.mailbox.work.emailAddress + ' newer_than:1d subject:"Document Uploaded"'
     }, function (err, messages) {
-      if (err) console.error('Error trashing trigger email sent by trigger sender');
+      if (err) console.error('Error: Personal account: Identify sent trigger email: ' + err);
       for (var i = 0; i < messages.length; i++ ) { personalGmailMessagesToTrash.push(messages[i].id) }
 
-      // Trash the trigger email received
+      // Work account: Identify the trigger email received
       workGmail.listMessages ({
-        freetextSearch: 'from:' + cfg.mailbox.personal.emailAddress + ' to:me newer_than:1d subject:"' + cfg.test.triggerEmail.subject + '"'
+        freetextSearch: 'from:' + cfg.mailbox.personal.emailAddress + ' to:me newer_than:1d subject:"Document Uploaded"'
       }, function (err, messages) {
-        if (err) console.error('Error trashing trigger email received');
-        for (var i = 0; i < messages.length; i++ ) { workGmailMessagesToTrash.push(messages[i].id) }
+        if (err) console.error('Error: Work account: Identify received trigger email: ' + err);
+        for (var i = 0; i < messages.length; i++ ) { workGmailMessagesToTrash.push(messages[i].id); }
 
         // Delete the created payslips folder
         personalGdrive.trashFiles ({
@@ -201,39 +217,63 @@ describe('Running the script with the happy path', function () {
           deletePermanently: true
         }, function (err, reps) {
 
-          // Trash the notification email sent by work address
-          workGmail.listMessages ({
-            freetextSearch: 'is:sent from:me to:' + cfg.mailbox.personal.emailAddress + ' newer_than:1d subject:"' + cfg.notificationEmail.subject + '"'
+          // Personal account: Identify the notification email sent from the Pi to myself
+          personalGmail.listMessages ({
+            freetextSearch: 'is:sent from:me to:me newer_than:1d subject:"' + cfg.notificationEmail.subject + '"'
           }, function (err, messages) {
-            if (err) console.error('Error trashing notification email sent by work address');
-            for (var i = 0; i < messages.length; i++ ) { workGmailMessagesToTrash.push(messages[i].id) }
+            if (err) console.error('Error: Work account: Identify the notification email sent: ' + err);
+            for (var i = 0; i < messages.length; i++ ) { personalGmailMessagesToTrash.push(messages[i].id) }
 
-            // Trash the notification email received by personal address
-            personalGmail.listMessages ({
-              freetextSearch: 'from:' + cfg.mailbox.work.emailAddress + ' to:me newer_than:1d subject:"' + cfg.notificationEmail.subject + '"'
+	    // Personal account: Send off the actual deletions
+            personalGmail.trashMessages ({
+              messageIds: personalGmailMessagesToTrash
             }, function (err, messages) {
-              if (err) console.error('Error trashing notification received by personal address');
-              for (var i = 0; i < messages.length; i++ ) { personalGmailMessagesToTrash.push(messages[i].id) }
+              if (err) console.error('Error: Personal account: Send off the actual deletions - %s - %s', err, personalGmailMessagesToTrash);
 
-	      // Send off the actual deletions - personal
-              personalGmail.trashMessages ({
-                messageIds: personalGmailMessagesToTrash
+	      // Work account: Send off the actual deletions
+              workGmail.trashMessages ({
+                messageIds: workGmailMessagesToTrash
               }, function (err, messages) {
-                if (err) console.error('Error actually deleting personal emails - %s - %s', err, personalGmailMessagesToTrash);
+                if (err) console.error('Error: Work account: Send off the actual deletions - %s - %s', err, workGmailMessagesToTrash);
 
-	        // Send off the actual deletions - work
-                workGmail.trashMessages ({
-                  messageIds: workGmailMessagesToTrash
-                }, function (err, messages) {
-                  if (err) console.error('Error actually deleting work emails - %s - %s', err, workGmailMessagesToTrash);
-                  done();
-                }); // Send off the actual deletions - work
-              }); // Send off the actual deletions - personal
-            }); // Trash the notification email received by personal address
-          }); // Trash the notification email sent by work address
-	}); // Delete the created payslips folder
-      }); // Trash the trigger email received
-    }); // Trash the trigger email sent by the trigger sender
+                // Delete the processed label
+                workGmail.deleteLabel ({
+                  labelId: processedLabelId
+                }, function (err) {
+                  if (err) console.error('Error deleting processed label - %s', err);
+                  done()
+                });
+              });
+            });
+          });
+	});
+      });
+    });
   });
 
+});
+
+
+describe('Running the script when no processing is required', function () {
+
+  this.timeout(timeout)
+
+  var spyCb = sinon.spy();
+  var restore;
+
+  before(function (done) {
+    restore = SavePayslips.__set__('payslipGetter.downloadPayslip', function (p,cb) {spyCb(); cb("Should not reach here")});
+    SavePayslips(done);
+  });
+
+
+  it('shouldn\'t try to download the payslip', function (done) {
+    spyCb.callCount.should.equal(0);
+    done();
+  });
+
+  after(function (done) {
+    restore();
+    done();
+  })
 });
