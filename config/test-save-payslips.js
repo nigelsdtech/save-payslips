@@ -3,11 +3,9 @@ var defer = require('config/defer').deferConfig;
 
 module.exports = {
 
-  appName: process.env.npm_package_config_appName + '-test',
-
-  auth : {
+  auth: {
     scopes: {
-      personal: defer( function (cfg) { return '' + cfg.drive.personal.scopes + ' ' + cfg.mailbox.personal.scopes} ),
+      personal: defer( function (cfg) { return cfg.drive.personal.scopes + ' ' + cfg.mailbox.personal.scopes} ),
       work:     defer( function (cfg) { return cfg.mailbox.work.scopes } )
     },
     tokenFile: {
@@ -18,7 +16,7 @@ module.exports = {
 
   drive: {
     personal: {
-      scopes: "https://www.googleapis.com/auth/drive.file"
+      scopes: 'https://www.googleapis.com/auth/drive.file'
     },
     payslipsFolderName: defer( function(cfg) { var d = new Date(); return "Test folder " + cfg.appName + " - " + d.toString() } )
   },

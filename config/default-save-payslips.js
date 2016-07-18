@@ -24,6 +24,7 @@ module.exports = {
     payslipsFolderName: 'Payslips'
   },
 
+  gmailSearchCriteria: 'newer_than:7d from:Payslip4u subject:"Document Uploaded"',
   mailbox: {
     personal: {
       emailsFrom: "Nigel's Raspberry Pi <"+process.env.PERSONAL_EMAIL+">",
@@ -38,7 +39,6 @@ module.exports = {
   },
 
   notificationEmail : {
-    stubEmail: false,
     to:        process.env.PERSONAL_DISPLAY_NAME+" <"+process.env.PERSONAL_EMAIL_ADDRESS+">",
     subject:   "Payslip Saver Report"
   },
@@ -48,9 +48,6 @@ module.exports = {
     password: process.env.PORTUS_PASSWORD
   },
 
-  gmailSearchCriteria: 'newer_than:7d from:Payslip4u subject:"Document Uploaded"',
-  processedLabelName:  defer( function (cfg) { return cfg.appName+'-Processed' } ),
-  applyLabelToProcessedEmail: true,
-  markEmailAsRead: true
+  processedLabelName:  defer( function (cfg) { return cfg.appName+'-Processed' } )
 
 }

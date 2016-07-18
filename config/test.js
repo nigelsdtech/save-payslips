@@ -3,6 +3,8 @@ var defer = require('config/defer').deferConfig;
 
 module.exports = {
 
+  appName: process.env.npm_package_config_appName + '-test',
+
   test: {
     commonStubs: {
       'cfg': {
