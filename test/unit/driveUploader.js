@@ -49,16 +49,28 @@ describe('The drive uploader', function () {
       localFileLocation: '/tmp/file.txt'
     }
 
+    var restore;
+    before (function (done) {
+
+      restore = drive.__set__('cfg', {
+          appName: 'save-payslips-unit-test',
+          drive: { payslipsFolderName: 'Payslips-stubbed' }
+	});
+
+      done();
+    })
+
     describe('getting the Id of the "Payslips" folder', function () {
 
       it('returns an error if the google API fails', function (done) {
         drive.__set__('g', {listFiles: cbErr});
+
 	drive.uploadPayslip(p, function (e,cb) {
 	  e.should.be.an.error
 	  done();
 	})
       });
-      
+
       it('returns an error if not exactly one found', function (done) {
         drive.__set__('g', { listFiles: function (p,cb) { cb(null,[1,2,3,4])}});
 	drive.uploadPayslip(p, function (e,cb) {
@@ -86,17 +98,22 @@ describe('The drive uploader', function () {
 
       it('creates a file under the parent folder', function (done) {
         drive.__set__('g', {
-	  createFile: function (p,cb) { cb(null,{id: 2, alternateLink: 'urlPayslip'}) },
+	  createFile: function (p,cb) { cb(null,{id: 2, webContentLink: 'urlPayslip'}) },
 	  listFiles: cbListFilesGood
 	});
-	drive.uploadPayslip(p, function (e, altLink, parentUrl) {
-	  altLink.should.equal('urlPayslip');
+	drive.uploadPayslip(p, function (e, contentLink, parentUrl) {
+	  contentLink.should.equal('urlPayslip');
 	  parentUrl.should.equal('urlParent');
 	  done();
 	});
       });
     });
 
+
+    after (function (done) {
+      restore();
+      done();
+    })
   });
 
 });

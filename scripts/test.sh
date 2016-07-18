@@ -5,4 +5,4 @@
 export NODE_ENV="test"
 export NODE_APP_INSTANCE="save-payslips"
 
-mocha -b --check-leaks --recursive test/functional
+mocha -b --check-leaks --recursive test

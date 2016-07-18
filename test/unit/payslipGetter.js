@@ -49,7 +49,7 @@ describe('The Portus interactor', function () {
       psg.__set__('portus', { downloadLatestPayslip: cbErr });
       psg.downloadPayslip(null, function (e,cb) {testIsNotErr(e,done)})
     });
-    
+
     it('Returns the file location if it has', function (done) {
       psg.__set__('portus', { downloadLatestPayslip: function(p,cb) { cb(null, 'File location')} });
       psg.downloadPayslip(null, function (e,ret) { ret.should.be.a.string; done(); } )

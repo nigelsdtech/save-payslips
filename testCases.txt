@@ -1,5 +1,0 @@
-1. Email has been received
-2. Email not received
-3. Email has been processed
-4. Email not processed.
-5. Body returns an error

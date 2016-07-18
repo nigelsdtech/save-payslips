@@ -42,6 +42,7 @@ describe('The trigger checker', function () {
     var stubs = cfg.test.commonStubs
     tc.__set__(stubs);
     tc.__set__('en', {
+
       hasBeenReceived: stubFn,
       hasBeenProcessed: stubFn
     });
@@ -56,12 +57,12 @@ describe('The trigger checker', function () {
     describe('checking a message has been received', function () {
 
       it('returns an error if the EN api fails', function (done) {
-        tc.__set__('en', { hasBeenReceived: cbErr });
+        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbErr });
         tc.isProcessingRequired(null, function (e,cb) {testIsErr(e,done)})
       });
 
       it('returns false if it hasn\'t ', function (done) {
-        tc.__set__('en', { hasBeenReceived: cbFalse});
+        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbFalse});
         tc.isProcessingRequired(null, function (e,ret) { ret.should.be.false; done(); } )
       });
     });
@@ -70,17 +71,17 @@ describe('The trigger checker', function () {
     describe('checking a message has been processed', function () {
 
       it('returns an error if the EN api fails', function (done) {
-        tc.__set__('en', { hasBeenReceived: cbTrue, hasBeenProcessed: cbErr });
+        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, hasBeenProcessed: cbErr });
         tc.isProcessingRequired(null, function (e,cb) {testIsErr(e,done)})
       });
 
       it('returns false if it has', function (done) {
-        tc.__set__('en', { hasBeenReceived: cbTrue, hasBeenProcessed: cbFalse});
+        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, hasBeenProcessed: cbFalse});
         tc.isProcessingRequired(null, function (e,ret) { ret.should.be.true; done(); } )
       });
 
       it('returns true if it hasn\'t', function (done) {
-        tc.__set__('en', { hasBeenReceived: cbTrue, hasBeenProcessed: cbTrue });
+        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, hasBeenProcessed: cbTrue });
         tc.isProcessingRequired(null, function (e,ret) { ret.should.be.false; done(); } )
       });
     });

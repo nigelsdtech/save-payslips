@@ -160,7 +160,7 @@ describe('Running the script when processing is required', function () {
       messages.length.should.equal(1)
       done();
     })
-    
+
   });
 
   it('marks the trigger email as read and processed', function(done) {
