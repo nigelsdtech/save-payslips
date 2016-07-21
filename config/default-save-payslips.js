@@ -19,12 +19,12 @@ module.exports = {
 
   drive: {
     personal: {
-      scopes: 'https://www.googleapis.com/auth/drive'
+      scopes: ['https://www.googleapis.com/auth/drive']
     },
     payslipsFolderName: 'Payslips'
   },
 
-  gmailSearchCriteria: 'newer_than:7d from:Payslip4u subject:"Document Uploaded"',
+  gmailSearchCriteria: 'newer_than:21d from:Payslip4u subject:"Document Uploaded"',
   mailbox: {
     personal: {
       emailsFrom: "Nigel's Raspberry Pi <"+process.env.PERSONAL_EMAIL+">",
@@ -34,7 +34,7 @@ module.exports = {
     },
     work: {
       name: 'Work Primary',
-      scopes: 'https://www.googleapis.com/auth/gmail.modify'
+      scopes: ['https://www.googleapis.com/auth/gmail.modify']
     }
   },
 

@@ -32,5 +32,4 @@ module.exports = {
     },
     logDir: "./logs"
   }
-
 }

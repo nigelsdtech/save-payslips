@@ -5,8 +5,8 @@ module.exports = {
 
   auth: {
     scopes: {
-      personal: defer( function (cfg) { return cfg.drive.personal.scopes + ' ' + cfg.mailbox.personal.scopes} ),
-      work:     defer( function (cfg) { return cfg.mailbox.work.scopes } )
+      personal: defer( function (cfg) { return cfg.drive.personal.scopes.concat(cfg.mailbox.personal.scopes) } ),
+      work:     defer( function (cfg) { return cfg.mailbox.work.scopes })
     },
     tokenFile: {
       personal: defer( function (cfg) { return "access_token_"+cfg.appName+"-personal.json" } ),
@@ -16,7 +16,7 @@ module.exports = {
 
   drive: {
     personal: {
-      scopes: 'https://www.googleapis.com/auth/drive.file'
+      scopes: ['https://www.googleapis.com/auth/drive.file']
     },
     payslipsFolderName: defer( function(cfg) { var d = new Date(); return "Test folder " + cfg.appName + " - " + d.toString() } )
   },
@@ -26,11 +26,11 @@ module.exports = {
   mailbox: {
     personal: {
       emailAddress: process.env.PERSONAL_EMAIL_ADDRESS,
-      scopes: 'https://mail.google.com'
+      scopes: ['https://mail.google.com']
     },
     work: {
       emailAddress: process.env.OB_EMAIL_ADDRESS,
-      scopes: 'https://mail.google.com'
+      scopes: ['https://mail.google.com']
     }
   },
 
