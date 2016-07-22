@@ -43,7 +43,7 @@ describe('The drive uploader', function () {
 
   describe('UploadPayslip', function () {
 
-    var cbListFilesGood = function (p,cb) { cb(null,[{id: 1, alternateLink: 'urlParent'}])};
+    var cbListFilesGood = function (p,cb) { cb(null,[{id: 1, webViewLink: 'urlParent'}])};
 
     var p = {
       localFileLocation: '/tmp/file.txt'
@@ -98,7 +98,7 @@ describe('The drive uploader', function () {
 
       it('creates a file under the parent folder', function (done) {
         drive.__set__('g', {
-	  createFile: function (p,cb) { cb(null,{id: 2, webContentLink: 'urlPayslip'}) },
+	  createFile: function (p,cb) { cb(null,{id: 2, webViewLink: 'urlPayslip'}) },
 	  listFiles: cbListFilesGood
 	});
 	drive.uploadPayslip(p, function (e, contentLink, parentUrl) {
