@@ -140,10 +140,12 @@ describe('Running the script when processing is required', function () {
   it('uploads the payslip to the recipient\'s google drive under the Payslips folder', function (done) {
     personalGdrive.listFiles({
       freetextSearch: '"' + payslipsFolderId + '" in parents',
-      spaces: "drive"
+      spaces: "drive",
+      retFields: ['files(mimeType,size)']
     }, function (err, retFiles) {
       retFiles.length.should.equal(1);
       retFiles[0].mimeType.should.equal('application/pdf')
+      retFiles[0].size.should.not.equal('0')
       done();
     });
   });
@@ -152,7 +154,7 @@ describe('Running the script when processing is required', function () {
   it('sends a notification email to the personal account with a link to the uploaded payslip', function (done) {
 
     personalGmail.listMessages({
-      freetextSearch: 'is:unread from:me to:me newer_than:1d subject:"' + cfg.notificationEmail.subject + '"',
+      freetextSearch: 'is:unread to:me newer_than:1d subject:"' + cfg.notificationEmail.subject + '"',
       maxResults: 1
     }, function (err, messages) {
       if (err) { throw err }

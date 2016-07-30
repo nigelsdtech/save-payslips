@@ -16,7 +16,10 @@ module.exports = {
 
   drive: {
     personal: {
-      scopes: ['https://www.googleapis.com/auth/drive.file']
+      scopes: [
+        'https://www.googleapis.com/auth/drive.file',
+        'https://www.googleapis.com/auth/drive.metadata',
+      ]
     },
     payslipsFolderName: defer( function(cfg) { var d = new Date(); return "Test folder " + cfg.appName + " - " + d.toString() } )
   },
