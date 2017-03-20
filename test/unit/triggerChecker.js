@@ -40,11 +40,11 @@ describe('The trigger checker', function () {
     // Stub out external modules
 
     var stubs = cfg.test.commonStubs
+
     tc.__set__(stubs);
     tc.__set__('en', {
-
       hasBeenReceived: stubFn,
-      hasBeenProcessed: stubFn
+      allHaveBeenProcessed: stubFn
     });
 
     done();
@@ -71,17 +71,17 @@ describe('The trigger checker', function () {
     describe('checking a message has been processed', function () {
 
       it('returns an error if the EN api fails', function (done) {
-        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, hasBeenProcessed: cbErr });
+        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, allHaveBeenProcessed: cbErr });
         tc.isProcessingRequired(null, function (e,cb) {testIsErr(e,done)})
       });
 
       it('returns false if it has', function (done) {
-        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, hasBeenProcessed: cbFalse});
+        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, allHaveBeenProcessed: cbFalse});
         tc.isProcessingRequired(null, function (e,ret) { ret.should.be.true; done(); } )
       });
 
       it('returns true if it hasn\'t', function (done) {
-        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, hasBeenProcessed: cbTrue });
+        tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, allHaveBeenProcessed: cbTrue });
         tc.isProcessingRequired(null, function (e,ret) { ret.should.be.false; done(); } )
       });
     });

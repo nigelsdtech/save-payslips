@@ -30,7 +30,6 @@
     "log4js": "0.6.37",
     "portus-interact": "git://github.com/nigelsdtech/portus-interact.git",
     "request": "^2.72.x",
-    "rewire": "2.5.1",
     "sinon": "1.17.4"
   },
   "config": {
@@ -39,6 +38,7 @@
   "devDependencies": {
     "chai": "3.5.0",
     "gmail-model": "git://github.com/nigelsdtech/gmail-model.git",
+    "rewire": "2.5.2",
     "sinon": "1.17.4",
     "sinon-chai": "2.8.0"
   }
