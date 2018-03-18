@@ -20,8 +20,6 @@ var stubFn  = function ()     {},
     cbTrue  = function (p,cb) { cb(null,true) },
     cbFalse = function (p,cb) { cb(null,false) };
 
-var testIsErr = function (e, done) {e.should.be.an.error; done();}
-
 
 
 /*
@@ -58,7 +56,7 @@ describe('The trigger checker', function () {
 
       it('returns an error if the EN api fails', function (done) {
         tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbErr });
-        tc.isProcessingRequired(null, function (e,cb) {testIsErr(e,done)})
+        tc.isProcessingRequired(null, function (e,cb) {e.should.include('Test Fail'); done()})
       });
 
       it('returns false if it hasn\'t ', function (done) {
@@ -72,7 +70,7 @@ describe('The trigger checker', function () {
 
       it('returns an error if the EN api fails', function (done) {
         tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, allHaveBeenProcessed: cbErr });
-        tc.isProcessingRequired(null, function (e,cb) {testIsErr(e,done)})
+        tc.isProcessingRequired(null, function (e,cb) {e.should.include('Test Fail'); done()})
       });
 
       it('returns false if it has', function (done) {

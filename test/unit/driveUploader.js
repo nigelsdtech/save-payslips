@@ -66,7 +66,7 @@ describe('The drive uploader', function () {
         drive.__set__('g', {listFiles: cbErr});
 
 	drive.uploadPayslip(p, function (e,cb) {
-	  e.should.be.an.error
+	  e.message.should.equal('Test Fail')
 	  done();
 	})
       });
@@ -74,7 +74,6 @@ describe('The drive uploader', function () {
       it('returns an error if not exactly one found', function (done) {
         drive.__set__('g', { listFiles: function (p,cb) { cb(null,[1,2,3,4])}});
 	drive.uploadPayslip(p, function (e,cb) {
-	  e.should.be.an.error
 	  e.message.should.equal('drive: did not receive exactly one parent folder')
 	  done();
 	});
@@ -90,7 +89,6 @@ describe('The drive uploader', function () {
 	  listFiles: cbListFilesGood
 	});
 	drive.uploadPayslip(p, function (e,cb) {
-	  e.should.be.an.error;
 	  e.message.should.equal('Test Fail');
 	  done();
 	})
