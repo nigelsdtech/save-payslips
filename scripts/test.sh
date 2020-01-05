@@ -1,9 +1,7 @@
 #!/bin/sh
 
-. ~/bin/setup_node_env.sh
-
-appname=${PWD##*/}
-export NODE_APP_INSTANCE="${appname}"
+export NODE_APP_INSTANCE="fictionCorp"
 export NODE_ENV="test"
 
-mocha -b --check-leaks --recursive test
+mocha -b test/unit
+mocha -b test/functional

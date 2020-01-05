@@ -38,3 +38,6 @@ jspm_packages
 
 # swp files
 *.swp
+
+# Sensitive configs
+config/local*

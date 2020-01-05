@@ -2,6 +2,7 @@
 
 var cfg    = require('config'),
     chai   = require('chai'),
+    sinon  = require('sinon'),
     rewire = require('rewire'),
     drive  = rewire('../../lib/driveUploader.js');
 
@@ -14,11 +15,6 @@ chai.should();
 // Common testing timeout
 var timeout = cfg.test.timeout.unit;
 
-// Some common functions
-var stubFn = function () {},
-    cbErr  = function (p,cb) { cb(new Error ('Test Fail'))};
-
-
 
 /*
  * The actual tests
@@ -28,90 +24,175 @@ describe('The drive uploader', function () {
 
   this.timeout(timeout);
 
-  before(function (done) {
+  describe('getPayslipFolderInfo', () => {
 
-    // Stub out external modules
+    const getPayslipFolderInfo = drive.__get__('getPayslipFolderInfo')
+    const listFilesOld = drive.__get__('listFiles');
+    const listFilesStub = sinon.stub()
+    const basicGoodlfsResp = {
+      id: 123,
+      name: 'thisIsAParentFolder',
+      webViewLink: 'thisIsThePayslipFolderUrl'
+    }
+    const basicGoodgpfiResp = {
+      id: 123,
+      url: 'thisIsThePayslipFolderUrl'
+    }
 
-    var stubs = cfg.test.commonStubs;
-    drive.__set__(stubs);
-    drive.__set__('GdriveModel', stubFn);
-    drive.__set__('path', { basename: function () {return 'stub'} } );
+    before(() => {
+      drive.__set__('listFiles', listFilesStub);
+      drive.__set__('cachedFolderInfo', {});
+    })
+    afterEach(() => {
+      listFilesStub.reset()
+      drive.__set__('cachedFolderInfo', {});
+    })
+    after(() => {
+      listFilesStub.restore()
+      drive.__set__('listFiles', listFilesOld);
+    })
 
-    done();
+    it('returns the expected fields', async () => {
 
-  });
+      listFilesStub.resolves([basicGoodlfsResp])
+      
+      const psfi = await getPayslipFolderInfo({folderName: cfg.drive.payslipsFolderName})
+
+      psfi.should.eql(basicGoodgpfiResp)
+    })
+
+    it('uses a cached resource if called twice', async () => {
+      listFilesStub.resolves([basicGoodlfsResp])
+
+      const psfi = await getPayslipFolderInfo({folderName: cfg.drive.payslipsFolderName})
+      psfi.should.eql(basicGoodgpfiResp)
+      listFilesStub.calledOnce.should.be.true
+
+      const psfi2 = await getPayslipFolderInfo({folderName: cfg.drive.payslipsFolderName})
+      psfi2.should.eql(basicGoodgpfiResp)
+      listFilesStub.calledOnce.should.be.true
+    })
+
+    it('throws an error if more than one folder is found', async () => {
+
+      listFilesStub.resolves([
+        basicGoodlfsResp,{
+        id: 456,
+        name: 'thisIsAnotherParentFolder',
+        webViewLink: 'abc456'
+      }])
+      
+      try {await getPayslipFolderInfo({folderName: cfg.drive.payslipsFolderName})}
+      catch (e) {
+        e.message.should.equal('drive: did not receive exactly one parent folder')
+      }
+      
+    })
+
+    it('throws an error if listFiles cannot be contacted', async () => {
+
+      listFilesStub.rejects()
+
+      try {await getPayslipFolderInfo({folderName: cfg.drive.payslipsFolderName})}
+      catch (e) {
+        e.message.should.equal('Error')
+      }
+      
+    })
+  })
 
   describe('UploadPayslip', function () {
 
-    var cbListFilesGood = function (p,cb) { cb(null,[{id: 1, webViewLink: 'urlParent'}])};
+    const uploadPayslip = drive.uploadPayslip
+    const createFileOld = drive.__get__('createFile');
+    const getPayslipFolderInfoOld = drive.__get__('getPayslipFolderInfo')
 
-    var p = {
-      localFileLocation: '/tmp/file.txt'
-    }
-
-    var restore;
-    before (function (done) {
-
-      restore = drive.__set__('cfg', {
-          appName: 'save-payslips-unit-test',
-          drive: { payslipsFolderName: 'Payslips-stubbed' }
-	});
-
-      done();
+    before(() => {
+      drive.__set__('getPayslipFolderInfo', sinon.stub().resolves({id: 1000, url: 'parentFolderUrl'}))
+    })
+    afterEach(() => {
+      drive.__set__('createFile', createFileOld);
+    })
+    after(() => {
+      drive.__set__('getPayslipFolderInfo', getPayslipFolderInfoOld)
     })
 
-    describe('getting the Id of the "Payslips" folder', function () {
+    it('returns the expected fields', async () => {
 
-      it('returns an error if the google API fails', function (done) {
-        drive.__set__('g', {listFiles: cbErr});
+      const createFileStub = sinon.stub().resolves({webViewLink: 'newFileUrl123'})
+      
+      drive.__set__('createFile', createFileStub);
+      const {fileUrl, folderUrl} = await uploadPayslip({localFileLocation: 'fileIsHere'})
 
-	drive.uploadPayslip(p, function (e,cb) {
-	  e.message.should.equal('Test Fail')
-	  done();
-	})
-      });
-
-      it('returns an error if not exactly one found', function (done) {
-        drive.__set__('g', { listFiles: function (p,cb) { cb(null,[1,2,3,4])}});
-	drive.uploadPayslip(p, function (e,cb) {
-	  e.message.should.equal('drive: did not receive exactly one parent folder')
-	  done();
-	});
-      });
-    });
-
-
-    describe('uploading the payslip', function () {
-
-      it('returns an error if the google API fails', function (done) {
-        drive.__set__('g', {
-          createFile: cbErr,
-	  listFiles: cbListFilesGood
-	});
-	drive.uploadPayslip(p, function (e,cb) {
-	  e.message.should.equal('Test Fail');
-	  done();
-	})
-      });
-
-      it('creates a file under the parent folder', function (done) {
-        drive.__set__('g', {
-	  createFile: function (p,cb) { cb(null,{id: 2, webViewLink: 'urlPayslip'}) },
-	  listFiles: cbListFilesGood
-	});
-	drive.uploadPayslip(p, function (e, contentLink, parentUrl) {
-	  contentLink.should.equal('urlPayslip');
-	  parentUrl.should.equal('urlParent');
-	  done();
-	});
-      });
-    });
-
-
-    after (function (done) {
-      restore();
-      done();
+      fileUrl.should.equal('newFileUrl123')
+      folderUrl.should.equal('parentFolderUrl')
     })
-  });
 
+    it('throws an error if the file cannot be created', async () => {
+
+      const createFileStub = sinon.stub().rejects()
+      
+      drive.__set__('createFile', createFileStub);
+      try {await uploadPayslip({localFileLocation: 'fileIsHere'})}
+      catch (e) {
+        e.message.should.eql('Error')
+      }
+
+    })
+
+  })
+
+  describe('getKnownPayslips', () => {
+
+    const getKnownPayslips = drive.getKnownPayslips
+    const listFilesOld = drive.__get__('listFiles');
+    const listFilesStub = sinon.stub()
+    const getPayslipFolderInfoOld = drive.__get__('getPayslipFolderInfo')
+    const basicGoodlfsResp = [
+      {name: '2001-01-01-PS1.pdf'},
+      {name: '2002-02-02-PS2.pdf'},
+      {name: '2003-03-03-PS3.pdf'}
+    ]
+    const basicGoodgkpResp = [
+      {date: '2001-01-01'},
+      {date: '2002-02-02'},
+      {date: '2003-03-03'}
+    ]
+
+    before(() => {
+      drive.__set__('getPayslipFolderInfo', sinon.stub().resolves({id: 1000, url: 'parentFolderUrl'}))
+      drive.__set__('listFiles', listFilesStub);
+    })
+    afterEach(() => {
+      listFilesStub.reset()
+    })
+    after(() => {
+      listFilesStub.restore()
+      drive.__set__('listFiles', listFilesOld);
+      drive.__set__('getPayslipFolderInfo', getPayslipFolderInfoOld)
+    })
+
+    it('returns the expected fields', async () => {
+
+      listFilesStub.resolves(basicGoodlfsResp)
+      
+      const gkp = await getKnownPayslips()
+
+      gkp.should.eql(basicGoodgkpResp)
+    })
+
+
+    it('throws an error if listFiles cannot be contacted', async () => {
+
+      listFilesStub.rejects()
+
+      try {await getKnownPayslips()}
+      catch (e) {
+        e.message.should.equal('Error')
+      }
+      
+    })
+  })
 });
+
+

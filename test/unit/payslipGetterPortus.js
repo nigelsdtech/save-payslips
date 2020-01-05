@@ -3,7 +3,7 @@
 var cfg    = require('config'),
     chai   = require('chai'),
     rewire = require('rewire'),
-    psg    = rewire('../../lib/payslipGetter.js');
+    psg    = rewire('../../lib/payslipGetterPortus.js');
 
 /*
  * Set up chai

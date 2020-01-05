@@ -2,8 +2,11 @@
 
 var cfg          = require('config'),
     chai         = require('chai'),
+    driveUploader= require('../../lib/driveUploader'),
     gdriveModel  = require('gdrive-model'),
     gmailModel   = require('gmail-model'),
+    payslipGetter = require(`../../lib/payslipGetter${cfg.payslipGetter}`),
+    promisify    = require('util').promisify,
     rewire       = require('rewire'),
     sinon        = require('sinon'),
     SavePayslips = rewire('../../lib/SavePayslips.js');
@@ -13,96 +16,133 @@ var cfg          = require('config'),
  */
 chai.should();
 
+const triggerEmailSubject = "This is a trigger email"
 
-
-/*
- * Work mailbox
- */
-
-var workGmail = new gmailModel({
-  appSpecificPassword : cfg.mailbox.work.password,
-  clientSecretFile    : cfg.auth.clientSecretFile,
-  emailsFrom          : cfg.mailbox.work.emailsFrom,
-  googleScopes        : cfg.auth.scopes.work,
-  name                : cfg.mailbox.work.name,
-  tokenDir            : cfg.auth.tokenFileDir,
-  tokenFile           : cfg.auth.tokenFile.work,
-  user                : cfg.mailbox.work.user
+const cfgTS = cfg.triggerSender;
+const triggerSenderGmail  = new gmailModel({
+  appSpecificPassword: cfgTS.appSpecificPassword,
+  clientSecretFile   : cfgTS.auth.clientSecretFile,
+  emailsFrom         : cfgTS.emailsFrom,
+  googleScopes       : cfgTS.auth.scopes,
+  tokenDir           : cfgTS.auth.tokenFileDir,
+  tokenFile          : cfgTS.auth.tokenFile,
+  user               : cfgTS.user,
+  name               : "triggerSender"
 });
 
-/*
- * Personal mailbox
- */
-
-var personalGmail = new gmailModel({
-  appSpecificPassword : cfg.mailbox.personal.password,
-  clientSecretFile    : cfg.auth.clientSecretFile,
-  emailsFrom          : cfg.mailbox.personal.emailsFrom,
-  googleScopes        : cfg.auth.scopes.personal,
-  name                : cfg.mailbox.personal.name,
-  tokenDir            : cfg.auth.tokenFileDir,
-  tokenFile           : cfg.auth.tokenFile.personal,
-  user                : cfg.mailbox.personal.user
+const cfgTC  = cfg.triggerChecker
+const cfgTCa = cfgTC.auth
+var triggerCheckerGmail = new gmailModel({
+  clientSecretFile    : cfgTCa.clientSecretFile,
+  googleScopes        : cfgTCa.scopes,
+  tokenDir            : cfgTCa.tokenFileDir,
+  tokenFile           : cfgTCa.tokenFile,
+  name                : "triggerChecker"
 });
 
-/*
- * Personal gdrive
- */
-
-var personalGdrive = new gdriveModel({
-  googleScopes        : cfg.auth.scopes.personal,
-  clientSecretFile    : cfg.auth.clientSecretFile,
-  tokenDir            : cfg.auth.tokenFileDir,
-  tokenFile           : cfg.auth.tokenFile.personal
+const cfgRS = cfg.reporter.auth;
+var reportSenderGmail = new gmailModel({
+  clientSecretFile    : cfgRS.clientSecretFile,
+  googleScopes        : cfgRS.scopes,
+  tokenDir            : cfgRS.tokenFileDir,
+  tokenFile           : cfgRS.tokenFile,
+  name                : "reporter"
 });
 
+const cfgRR = cfg.reportRecipient.auth
+var reportRecipientGmail = new gmailModel({
+  clientSecretFile    : cfgRR.clientSecretFile,
+  googleScopes        : cfgRR.scopes,
+  tokenDir            : cfgRR.tokenFileDir,
+  tokenFile           : cfgRR.tokenFile,
+  name                : "reportRecipient"
+});
 
+const cfgDr = cfg.drive
+const cfgDra = cfgDr.auth
+var recipientGdrive = new gdriveModel({
+  clientSecretFile    : cfgDra.clientSecretFile,
+  googleScopes        : cfgDra.scopes,
+  tokenDir            : cfgDra.tokenFileDir,
+  tokenFile           : cfgDra.tokenFile
+});
 
-
-var timeout = (1000*60)
+const timeout = (cfg.test.timeout.functional)
 
 
 /*
  * Some utility functions
  */
 
-function sendTriggerMessage (cb) {
 
-  personalGmail.sendMessage ({
+const sendMessage = promisify(triggerSenderGmail.sendMessage).bind(triggerSenderGmail)
+/**
+ * @description Sends out the initial trigger email
+ * 
+ * @returns {Promise}
+ */
+function sendTriggerMessage () {
+  return sendMessage ({
     body    : "Start the payslip saver",
-    subject : "Document Uploaded",
-    to      : cfg.mailbox.work.emailAddress
-  }, function (err, message) {
-
-    if (err) { cb(err); return null; }
-
-    cb(null,message);
+    subject : cfg.triggerEmail.subject,
+    to      : cfgTC.email
   })
-
 }
 
 
-function createTestFolder (cb) {
+const createFile = promisify(recipientGdrive.createFile).bind(recipientGdrive)
+/**
+ * @description - Creates a payslips folder in gDrive
+ * 
+ * @returns {Promise} google folder
+ */
+function createTestFolder () {
 
-  var d = new Date();
-  var desc =  "Test folder created by " + cfg.appName + " on " + d.toString();
-  var payslipsFolderName = cfg.drive.payslipsFolderName;
+  const d = new Date();
+  const desc = `Test folder created by ${cfg.appName} on ${d.toString()}`;
 
-  personalGdrive.createFile ({
+  const newFolderDetails = createFile ({
     isFolder : true,
     resource: {
       description: desc,
-      title: payslipsFolderName
+      title: cfgDr.payslipsFolderName
     }
-  }, function (err, resp) {
-
-    if (err) { cb(err); return null; }
-
-    cb(null,resp);
+  })
+  .then ((f) => {
+    console.log(`Created test folder: ${JSON.stringify(f)}`);
+    return f
   })
 
+  return newFolderDetails
 }
 
+
+/**
+ * @description find messages to delete and delete them
+ * @returns {Promise}
+ */
+async function cleanInbox ({gmailAccount, freetextSearch} = {}) {
+
+  const {name} = gmailAccount
+  console.log(`(Mailbox-${name}) - getting messages`)
+
+  // Personal account: Identify sent trigger email
+  return await
+    promisify(gmailAccount.listMessages).bind(gmailAccount)({freetextSearch})
+    .catch((err) => {console.error(`(Mailbox-${name}) - Problem getting messages: ${err}`)})
+    .then(async (messagesToTrash) => {
+
+      console.log(`(Mailbox-${name}) - deleting ${messagesToTrash.length} messages`)
+
+      const trashPromise = await promisify(gmailAccount.trashMessages).bind(gmailAccount)({
+        messageIds: messagesToTrash.map((m) => {return m.id})  
+      })
+
+      console.log(`(Mailbox-${name}) - deleted ${messagesToTrash.length} messages`)
+      return trashPromise
+    })
+    .catch((err) => {console.error(`(Mailbox-${name}) - Problem deleting messages: ${err}`)})
+}
 
 
 /*
@@ -115,144 +155,132 @@ describe('Running the script when processing is required', function () {
 
   var payslipsFolderId, processedLabelId;
 
-  before(function (done) {
+  before(async() => {
 
-    createTestFolder ( function (err, folder) {
-      if (err) throw new Error(err);
-      payslipsFolderId = folder.id;
+    console.log('Running setups...')
 
-      workGmail.getLabelId ({
-        labelName: cfg.processedLabelName,
+    await Promise.all([
+      createTestFolder(),
+
+      promisify(triggerCheckerGmail.getLabelId).bind(triggerCheckerGmail)({
+        labelName: cfgTC.processedLabelName,
         createIfNotExists: true
-      }, function (err, labelId) {
-        if (err) throw new Error(err);
-        processedLabelId=labelId
+      }),
 
-        sendTriggerMessage ( function (err, msg) {
-          if (err) throw new Error(err);
-          setTimeout(SavePayslips, 2000, done);
-        });
-      });
-    });
+      sendTriggerMessage()
+    ])
+    .then(([payslipsFolder, plId]) => {
+      payslipsFolderId = payslipsFolder.id
+      processedLabelId = plId
+    })
+
+    console.log('Setups complete.')
+
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    await wait(3000) 
+    
+    await SavePayslips()
+
+    await wait(3000)
+
+    return
   });
 
 
-  it('uploads the payslip to the recipient\'s google drive under the Payslips folder', function (done) {
-    personalGdrive.listFiles({
-      freetextSearch: '"' + payslipsFolderId + '" in parents',
+  it('uploads the payslip to the recipient\'s google drive under the Payslips folder', async () => {
+
+    const retFiles = await promisify(recipientGdrive.listFiles).bind(recipientGdrive)({
+      freetextSearch: `"${payslipsFolderId}" in parents`,
       spaces: "drive",
       retFields: ['files(mimeType,size)']
-    }, function (err, retFiles) {
-      retFiles.length.should.equal(1);
-      retFiles[0].mimeType.should.equal('application/pdf')
-      retFiles[0].size.should.not.equal('0')
-      done();
-    });
-  });
-
-
-  it('sends a notification email to the personal account with a link to the uploaded payslip', function (done) {
-
-    personalGmail.listMessages({
-      freetextSearch: 'is:unread to:me newer_than:1d subject:"' + cfg.notificationEmail.subject + '"',
-      maxResults: 1
-    }, function (err, messages) {
-      if (err) { throw err }
-
-      messages.length.should.equal(1)
-      done();
     })
 
+    retFiles.length.should.not.equal(0);
+    retFiles[0].mimeType.should.equal('application/pdf')
+    retFiles[0].size.should.not.equal('0')
   });
 
-  it('marks the trigger email as read and processed', function(done) {
 
-    workGmail.listMessages({
-      freetextSearch: 'from:' + cfg.mailbox.personal.emailAddress + ' to:me newer_than:1d subject:"Document Uploaded"',
+  it('sends a notification email to the personal account with a link to the uploaded payslip', async () => {
+
+    const msgs = await promisify(reportRecipientGmail.listMessages).bind(reportRecipientGmail)({
+      freetextSearch: `is:unread to:me newer_than:1d subject:"${cfg.reporter.subject}"`,
       maxResults: 1
-    }, function (err, messages) {
-      if (err) { throw err }
-      if (messages.length == 0) { throw new Error ('Trigger email not found') }
-
-      workGmail.getMessage({ messageId: messages[0].id }, function (err, message) {
-
-        if (err) { throw err }
-        message.should.have.property('labelIds');
-        message.labelIds.should.include(processedLabelId);
-        message.labelIds.should.not.include('UNREAD');
-	done();
-      })
-
     })
+    
+    msgs.length.should.equal(1)
+
+  });
+
+  it('marks the trigger email as read and processed', async () => {
+
+    const msgs = await promisify(triggerCheckerGmail.listMessages).bind(triggerCheckerGmail)({
+      freetextSearch: `to:me newer_than:1d subject:"${cfg.triggerEmail.subject}"`,
+      maxResults: 1,
+      retFields: ['messages(id)']
+    })
+
+    msgs.length.should.equal(1)
+
+    const msg = await promisify(triggerCheckerGmail.getMessage).bind(triggerCheckerGmail)({
+      messageId: msgs[0].id,
+      retFields: ['labelIds']
+    })
+    
+    msg.should.have.property('labelIds');
+    msg.labelIds.should.include(processedLabelId);
+    msg.labelIds.should.not.include('UNREAD');
+
   });
 
 
 
-  after(function (done) {
+  after(async () => {
 
     // Delete trigger message from sender
     // Delete trigger message received
+    // Delete the label
+    // Delete report email sent by sender
+    // Delete report email received
     // Delete created payslips folder
-    // Delete notification email sent by work address
-    // Delete notification email received by personal address
 
-    var workGmailMessagesToTrash     = [];
-    var personalGmailMessagesToTrash = [];
+    const subjectAndNewerTrig = `subject:"${cfg.triggerEmail.subject}" newer_than:1d`
+    const subjectAndNewerRpt = `subject:"${cfg.reporter.subject}" newer_than:1d`
 
-    // Personal account: Identify sent trigger email
-    personalGmail.listMessages ({
-      freetextSearch: 'is:sent from:me to:' + cfg.mailbox.work.emailAddress + ' newer_than:1d subject:"Document Uploaded"'
-    }, function (err, messages) {
-      if (err) console.error('Error: Personal account: Identify sent trigger email: ' + err);
-      for (var i = 0; i < messages.length; i++ ) { personalGmailMessagesToTrash.push(messages[i].id) }
+    return await Promise.all([
+      cleanInbox({
+        gmailAccount: triggerSenderGmail,
+        freetextSearch: `is:sent from:me to:${cfg.triggerChecker.email} ${subjectAndNewerTrig}`
+      }),
 
-      // Work account: Identify the trigger email received
-      workGmail.listMessages ({
-        freetextSearch: 'from:' + cfg.mailbox.personal.emailAddress + ' to:me newer_than:1d subject:"Document Uploaded"'
-      }, function (err, messages) {
-        if (err) console.error('Error: Work account: Identify received trigger email: ' + err);
-        for (var i = 0; i < messages.length; i++ ) { workGmailMessagesToTrash.push(messages[i].id); }
+      cleanInbox({
+        gmailAccount: triggerCheckerGmail,
+        freetextSearch: `to:me ${subjectAndNewerTrig}"`
+      }),
 
-        // Delete the created payslips folder
-        personalGdrive.trashFiles ({
-          fileIds: [payslipsFolderId],
-          deletePermanently: true
-        }, function (err, reps) {
+      // Delete the processed label
+      promisify(triggerCheckerGmail.deleteLabel).bind(triggerCheckerGmail)({labelId: processedLabelId}),
 
-          // Personal account: Identify the notification email sent from the Pi to myself
-          personalGmail.listMessages ({
-            freetextSearch: 'is:sent from:me to:me newer_than:1d subject:"' + cfg.notificationEmail.subject + '"'
-          }, function (err, messages) {
-            if (err) console.error('Error: Work account: Identify the notification email sent: ' + err);
-            for (var i = 0; i < messages.length; i++ ) { personalGmailMessagesToTrash.push(messages[i].id) }
+        
+      cleanInbox({
+        gmailAccount: reportSenderGmail,
+        freetextSearch: `is:sent from:me to:${cfg.reporter.to} ${subjectAndNewerRpt}`
+      }),
 
-	    // Personal account: Send off the actual deletions
-            personalGmail.trashMessages ({
-              messageIds: personalGmailMessagesToTrash
-            }, function (err, messages) {
-              if (err) console.error('Error: Personal account: Send off the actual deletions - %s - %s', err, personalGmailMessagesToTrash);
+      cleanInbox({
+        gmailAccount: reportRecipientGmail,
+        freetextSearch: `is:inbox from:${cfg.reporter.user} ${subjectAndNewerRpt}`
+      }),
+   
+      // Delete the created payslips folder
+      promisify(recipientGdrive.trashFiles).bind(recipientGdrive)({
+        fileIds: [payslipsFolderId],
+        deletePermanently: true
+      })
+    ])
 
-	      // Work account: Send off the actual deletions
-              workGmail.trashMessages ({
-                messageIds: workGmailMessagesToTrash
-              }, function (err, messages) {
-                if (err) console.error('Error: Work account: Send off the actual deletions - %s - %s', err, workGmailMessagesToTrash);
-
-                // Delete the processed label
-                workGmail.deleteLabel ({
-                  labelId: processedLabelId
-                }, function (err) {
-                  if (err) console.error('Error deleting processed label - %s', err);
-                  done()
-                });
-              });
-            });
-          });
-	});
-      });
-    });
-  });
-
+  })
 });
 
 
@@ -260,22 +288,82 @@ describe('Running the script when no processing is required', function () {
 
   this.timeout(timeout)
 
-  var spyCb = sinon.spy();
-  var restore;
+  var stub;
 
-  before(function (done) {
-    restore = SavePayslips.__set__('payslipGetter.downloadPayslip', function (p,cb) {spyCb(); cb("Should not reach here")});
-    SavePayslips(done);
+  before(async () => {
+    stub = sinon.stub(payslipGetter,'getKnownPayslips').rejects("Should not reach here");
+    await SavePayslips();
   });
 
 
-  it('shouldn\'t try to download the payslip', function (done) {
-    spyCb.callCount.should.equal(0);
-    done();
+  it('shouldn\'t try to download the payslip', () => {stub.callCount.should.equal(0)});
+
+  after(() => {stub.reset(); stub.restore();})
+});
+
+
+describe('Running the script when there is an error', function () {
+
+  this.timeout(timeout)
+
+  var stubps, stubdr;
+
+  before(async () => {
+    stubps = sinon.stub(payslipGetter,'getKnownPayslips').rejects("Fake error from payslipGetter");
+    stubdr = sinon.stub(driveUploader,'getKnownPayslips').rejects("Fake error from driveUploader");
+
+    console.log('Running setups...')
+
+    await sendTriggerMessage()
+
+    console.log('Setups complete.')
+
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    await wait(3000) 
+    
+    await SavePayslips()
+
+    await wait(3000)
+
+    return
   });
 
-  after(function (done) {
-    restore();
-    done();
+  it('sends an error email to the recipient account', async () => {
+
+    const msgs = await promisify(reportRecipientGmail.listMessages).bind(reportRecipientGmail)({
+      freetextSearch: `is:unread to:me newer_than:1d subject:"${cfg.reporter.subject} ERROR" "Fake error from"`,
+      maxResults: 1
+    })
+    
+    msgs.length.should.equal(1)
+
+  });
+
+  after(async () => {
+    stubps.reset(); stubps.restore();
+    stubdr.reset(); stubdr.restore();
+
+    return await Promise.all([
+      cleanInbox({
+        gmailAccount: triggerSenderGmail,
+        freetextSearch: `is:sent to:${cfg.triggerChecker.email} newer_than:1d subject:"${cfg.triggerEmail.subject}"`
+      }),
+
+      cleanInbox({
+        gmailAccount: triggerCheckerGmail,
+        freetextSearch: `to:me newer_than:1d subject:"${cfg.triggerEmail.subject}"`
+      }),
+        
+      cleanInbox({
+        gmailAccount: reportSenderGmail,
+        freetextSearch: `is:sent from:me to:${cfg.reporter.to} newer_than:1d subject:"${cfg.reporter.subject} ERROR" "Fake error from"`
+      }),
+
+      cleanInbox({
+        gmailAccount: reportRecipientGmail,
+        freetextSearch: `is:unread to:me newer_than:1d subject:"${cfg.reporter.subject} ERROR" "Fake error from"`
+      })
+    ])
   })
 });

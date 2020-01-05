@@ -30,57 +30,52 @@ describe('The trigger checker', function () {
 
   this.timeout(timeout);
 
-  var revert;
-
-  before(function (done) {
-
-
+  before(function () {
     // Stub out external modules
-
-    var stubs = cfg.test.commonStubs
-
-    tc.__set__(stubs);
+    tc.__set__(cfg.test.commonStubs);
     tc.__set__('en', {
       hasBeenReceived: stubFn,
       allHaveBeenProcessed: stubFn
     });
-
-    done();
-
   })
 
-  describe('isProcessingRequired', function () {
+  describe('isProcessingRequired', () => {
 
 
-    describe('checking a message has been received', function () {
+    describe('checking a message has been received', () => {
 
-      it('returns an error if the EN api fails', function (done) {
+      it('returns an error if the EN api fails', async () => {
         tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbErr });
-        tc.isProcessingRequired(null, function (e,cb) {e.should.include('Test Fail'); done()})
+        try { await tc.isProcessingRequired(); throw new Error ('Should not have reached here') }
+        catch (e) { e.message.should.include('Test Fail'); }
       });
 
-      it('returns false if it hasn\'t ', function (done) {
+      it('returns false if it hasn\'t ', async () => {
         tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbFalse});
-        tc.isProcessingRequired(null, function (e,ret) { ret.should.be.false; done(); } )
+        const ipr = await tc.isProcessingRequired();
+        ipr.should.be.false
       });
     });
 
 
     describe('checking a message has been processed', function () {
 
-      it('returns an error if the EN api fails', function (done) {
+      it('returns an error if the EN api fails', async () => {
         tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, allHaveBeenProcessed: cbErr });
-        tc.isProcessingRequired(null, function (e,cb) {e.should.include('Test Fail'); done()})
+        try { await tc.isProcessingRequired(); throw new Error ('Should not have reached here') }
+        catch (e) { e.message.should.include('Test Fail'); }
       });
 
-      it('returns false if it has', function (done) {
+      it('returns true if it has', async () => {
         tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, allHaveBeenProcessed: cbFalse});
-        tc.isProcessingRequired(null, function (e,ret) { ret.should.be.true; done(); } )
+        const ipr = await tc.isProcessingRequired();
+        ipr.should.be.true
       });
 
-      it('returns true if it hasn\'t', function (done) {
+      it('returns false if it hasn\'t', async () => {
         tc.__set__('en', { flushCache: stubFn, hasBeenReceived: cbTrue, allHaveBeenProcessed: cbTrue });
-        tc.isProcessingRequired(null, function (e,ret) { ret.should.be.false; done(); } )
+        const ipr = await tc.isProcessingRequired();
+        ipr.should.be.false
       });
     });
   });

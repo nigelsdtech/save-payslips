@@ -1,0 +1,38 @@
+
+# For use with the rest-client extension in vscode studio
+@baseUrl = https://www.myepaywindow.com
+@username = YOUR_USERNAME
+@password = YOUR_PASSWORD
+
+
+# @name getLoginForm
+GET  {{baseUrl}}/Login
+
+###
+
+@reqVerificationToken = GET_THIS_MANUALLY
+
+# @name doLogin
+POST {{baseUrl}}/Login/MemberLogin HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+__RequestVerificationToken={{reqVerificationToken}}
+&UserName={{username}}
+&Password={{password}}
+
+###
+
+# @name getPayslipList
+
+GET {{baseUrl}}/Payslips/Datatable
+?sort=RunDate|desc
+&page=1
+&per_page=1
+Accept: application/json
+
+###
+@payslipId = {{getPayslipList.response.body.$.data[0].RunID}}
+
+# @name downloadPayslip
+
+GET {{baseUrl}}/Payslips/Download/{{payslipId}}

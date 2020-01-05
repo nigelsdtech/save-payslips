@@ -1,0 +1,8 @@
+{
+    "mochaExplorer.env": {
+        "NODE_ENV": "test",
+        "NODE_APP_INSTANCE": "fictionCorp"
+    },
+    "mochaExplorer.pruneFiles": true,
+    "mochaExplorer.files": "test/unit/*.js"
+}
