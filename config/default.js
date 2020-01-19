@@ -31,7 +31,7 @@ module.exports = {
 
   log: {
     appName: defer(function (cfg) { return cfg.appName } ),
-    level:   "DEBUG",
+    level:   "INFO",
     log4jsConfigs: {
       appenders: [
         {
