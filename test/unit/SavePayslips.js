@@ -286,7 +286,7 @@ describe('SavePayslips', function () {
         }
 
         if (sendCompletionNotice) {
-          it('Sends a completion notice', () => {stubs.scnStub.calledWith(uploadDetails).should.be.true})
+          it('Sends a completion notice', () => {stubs.scnStub.calledWith({uploadedFileDetails: uploadDetails}).should.be.true})
         } else {
           it('Does not send a completion notice', () => {stubs.scnStub.called.should.be.false})
         }
