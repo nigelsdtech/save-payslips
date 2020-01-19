@@ -26,7 +26,7 @@ var testIsNotErr = function (e, cb) {e.should.not.be.an('error'); cb();}
  * The actual tests
  */
 
-describe('The Portus interactor', function () {
+describe.skip('The Portus interactor', function () {
 
   this.timeout(timeout);
 
