@@ -6,7 +6,7 @@ module.exports = {
   test: {
     commonStubs: {
       'log': {
-        debug:    console.debug,
+        debug:    console.log,
         error:    console.error,
         info:     console.log,
         setLevel: function () {}
