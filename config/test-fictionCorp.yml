@@ -1,9 +1,4 @@
 companyName: 'FictionCorp'
-drive:
-  auth:
-    scopes:
-      - 'https://www.googleapis.com/auth/drive.file'
-      - 'https://www.googleapis.com/auth/drive.metadata'
 
 ePayWindow:
   username: 'fictionEpayUser'

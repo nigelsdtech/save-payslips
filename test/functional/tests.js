@@ -155,11 +155,13 @@ describe('Running the script when processing is required', function () {
 
   var payslipsFolderId, processedLabelId;
 
-  before(async() => {
+  before(() => {
 
     console.log('Running setups...')
 
-    await Promise.all([
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    return Promise.all([
       createTestFolder(),
 
       promisify(triggerCheckerGmail.getLabelId).bind(triggerCheckerGmail)({
@@ -173,18 +175,17 @@ describe('Running the script when processing is required', function () {
       payslipsFolderId = payslipsFolder.id
       processedLabelId = plId
     })
+    .then( () => {
+      console.log('Setups complete.')
+      return wait(3000)
+    })
+    .then( async () => {
+      return await SavePayslips()
+    })
+    .then( () => {
+      return wait(3000)
+    })
 
-    console.log('Setups complete.')
-
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-    await wait(3000) 
-    
-    await SavePayslips()
-
-    await wait(3000)
-
-    return
   });
 
 
