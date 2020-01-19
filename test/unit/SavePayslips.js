@@ -129,8 +129,9 @@ describe('SavePayslips', function () {
 
     it('downloads only new files when the drive is not empty', async () => {
       drGkpStub.resolves([
-        {date: '2001-01-01'},
-        {date: '2002-02-02'}
+        {date: '2001-01-01', companyName: 'FictionCorp'},
+        {date: '2002-02-02', companyName: 'FictionCorp'},
+        {date: '2003-03-03', companyName: 'OtherCo'}
       ])
       pgGkpStub.resolves(filesInProvider)
       const i = await fn()
@@ -143,10 +144,10 @@ describe('SavePayslips', function () {
 
     it('does not download when the two are in sync', async () => {
       drGkpStub.resolves([
-        {date: '2001-01-01'},
-        {date: '2002-02-02'},
-        {date: '2003-03-03'},
-        {date: '2004-04-04'}
+        {date: '2001-01-01', companyName: 'FictionCorp'},
+        {date: '2002-02-02', companyName: 'FictionCorp'},
+        {date: '2003-03-03', companyName: 'FictionCorp'},
+        {date: '2004-04-04', companyName: 'FictionCorp'}
       ])
       pgGkpStub.resolves(filesInProvider)
       const i = await fn()

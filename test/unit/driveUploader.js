@@ -154,9 +154,9 @@ describe('The drive uploader', function () {
       {name: '2003-03-03-PS3.pdf'}
     ]
     const basicGoodgkpResp = [
-      {date: '2001-01-01'},
-      {date: '2002-02-02'},
-      {date: '2003-03-03'}
+      {date: '2001-01-01', companyName: 'PS1'},
+      {date: '2002-02-02', companyName: 'PS2'},
+      {date: '2003-03-03', companyName: 'PS3'}
     ]
 
     before(() => {
