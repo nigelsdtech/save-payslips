@@ -3,10 +3,10 @@ var defer = require('config/defer').deferConfig;
 
 module.exports = {
 
-  appName: defer( function (cfg) {
-    const out = 'save-payslips'
+  instanceFullName: defer( function (cfg) {
+    const out = process.env.npm_package_config_appName
       + "-" + process.env.NODE_APP_INSTANCE
-      + ( (typeof process.env.NODE_ENV == "undefined" || ["", "production"].indexOf(process.env.NODE_ENV) >= 0)? "" : `-dd${process.env.NODE_ENV}` )
+      + ( (typeof process.env.NODE_ENV == "undefined" || ["", "production"].indexOf(process.env.NODE_ENV) >= 0)? "" : `-${process.env.NODE_ENV}` )
     return out
   } ),
 
@@ -14,7 +14,7 @@ module.exports = {
     credentialsDir:   "./credentials",
     clientSecretFile: defer( function (cfg) { return cfg.auth.credentialsDir+"/client_secret.json" } ),
     tokenFileDir:     defer( function (cfg) { return cfg.auth.credentialsDir } ),
-    tokenFile:        defer( function (cfg) { return `access_token_${cfg.appName}.json` } ),
+    tokenFile:        defer( function (cfg) { return `access_token_${cfg.instanceFullName}.json` } ),
   },
 
   companyName: 'OVERRIDE_ME',
@@ -30,14 +30,14 @@ module.exports = {
   },
 
   log: {
-    appName: defer(function (cfg) { return cfg.appName } ),
+    appName: defer(function (cfg) { return cfg.instanceFullName } ),
     level:   "INFO",
     log4jsConfigs: {
       appenders: [
         {
           type:       "file",
-          filename:   defer(function (cfg) { return `${cfg.log.logDir}/${cfg.appName}.log` }),
-          category:   defer(function (cfg) { return cfg.appName }),
+          filename:   defer(function (cfg) { return `${cfg.log.logDir}/${cfg.instanceFullName}.log` }),
+          category:   defer(function (cfg) { return cfg.instanceFullName }),
           reloadSecs: 60,
           maxLogSize: 1024000
         },
@@ -58,7 +58,7 @@ module.exports = {
       tokenFileDir:     defer( function (cfg) { return cfg.auth.credentialsDir } )
     },
     gmailSearchCriteria: 'OVERRIDE ME with a gmail search query string',
-    processedLabelName: defer( function (cfg) { return `${cfg.appName}-Processed` } )
+    processedLabelName: defer( function (cfg) { return `${cfg.instanceFullName}-Processed` } )
   },
 
   triggerEmail: {
@@ -80,6 +80,6 @@ module.exports = {
     user:      'OVERRIDE_ME',
     appSpecificPassword:  'OVERRIDE_ME',
     to:        'OVERRIDE_ME',
-    subject:   defer( function (cfg) { return `Payslip Saver Report - ${cfg.appName}` } )
+    subject:   defer( function (cfg) { return `Payslip Saver Report - ${cfg.instanceFullName}` } )
   }
 }
