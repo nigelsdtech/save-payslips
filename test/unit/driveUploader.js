@@ -27,8 +27,7 @@ describe('The drive uploader', function () {
   describe('getPayslipFolderInfo', () => {
 
     const getPayslipFolderInfo = drive.__get__('getPayslipFolderInfo')
-    const listFilesOld = drive.__get__('listFiles');
-    const listFilesStub = sinon.stub()
+
     const basicGoodlfsResp = {
       id: 123,
       name: 'thisIsAParentFolder',
@@ -39,22 +38,25 @@ describe('The drive uploader', function () {
       url: 'thisIsThePayslipFolderUrl'
     }
 
-    before(() => {
-      drive.__set__('listFiles', listFilesStub);
-      drive.__set__('cachedFolderInfo', {});
+    const stubHub = {}
+    const rewires = []
+
+    beforeEach(() => {
+      stubHub.listFilesStub = sinon.stub()
+      rewires.push(
+        drive.__set__('listFiles', stubHub.listFilesStub),
+        drive.__set__('cachedFolderInfo', {})
+      )
     })
     afterEach(() => {
-      listFilesStub.reset()
-      drive.__set__('cachedFolderInfo', {});
-    })
-    after(() => {
-      listFilesStub.restore()
-      drive.__set__('listFiles', listFilesOld);
+      stubHub.listFilesStub.reset()
+      rewires.forEach( revert => {revert()} )
+      rewires.splice(0,rewires.length-1)
     })
 
     it('returns the expected fields', async () => {
 
-      listFilesStub.resolves([basicGoodlfsResp])
+      stubHub.listFilesStub.resolves([basicGoodlfsResp])
       
       const psfi = await getPayslipFolderInfo({folderName: cfg.drive.payslipsFolderName})
 
@@ -62,20 +64,20 @@ describe('The drive uploader', function () {
     })
 
     it('uses a cached resource if called twice', async () => {
-      listFilesStub.resolves([basicGoodlfsResp])
+      stubHub.listFilesStub.resolves([basicGoodlfsResp])
 
       const psfi = await getPayslipFolderInfo({folderName: cfg.drive.payslipsFolderName})
       psfi.should.eql(basicGoodgpfiResp)
-      listFilesStub.calledOnce.should.be.true
+      stubHub.listFilesStub.calledOnce.should.be.true
 
       const psfi2 = await getPayslipFolderInfo({folderName: cfg.drive.payslipsFolderName})
       psfi2.should.eql(basicGoodgpfiResp)
-      listFilesStub.calledOnce.should.be.true
+      stubHub.listFilesStub.calledOnce.should.be.true
     })
 
     it('throws an error if more than one folder is found', async () => {
 
-      listFilesStub.resolves([
+      stubHub.listFilesStub.resolves([
         basicGoodlfsResp,{
         id: 456,
         name: 'thisIsAnotherParentFolder',
@@ -91,7 +93,7 @@ describe('The drive uploader', function () {
 
     it('throws an error if listFiles cannot be contacted', async () => {
 
-      listFilesStub.rejects()
+      stubHub.listFilesStub.rejects()
 
       try {await getPayslipFolderInfo({folderName: cfg.drive.payslipsFolderName})}
       catch (e) {
@@ -104,35 +106,50 @@ describe('The drive uploader', function () {
   describe('UploadPayslip', function () {
 
     const uploadPayslip = drive.uploadPayslip
-    const createFileOld = drive.__get__('createFile');
-    const getPayslipFolderInfoOld = drive.__get__('getPayslipFolderInfo')
+
+    const stubHub = {}
+    const rewiresTemp = []
+    const rewiresPerm = []
 
     before(() => {
-      drive.__set__('getPayslipFolderInfo', sinon.stub().resolves({id: 1000, url: 'parentFolderUrl'}))
+      stubHub.createFileStub = sinon.stub()
+      rewiresPerm.push(
+        drive.__set__('getPayslipFolderInfo', sinon.stub().resolves({id: 1000, url: 'parentFolderUrl'}))
+      )
+    })
+    beforeEach(() => {
+      rewiresTemp.push(
+        drive.__set__('cachedFolderInfo', {}),
+        drive.__set__('createFile', stubHub.createFileStub)
+      )
     })
     afterEach(() => {
-      drive.__set__('createFile', createFileOld);
+      for (const s in stubHub) {stubHub[s].reset()}
+
+      rewiresTemp.forEach( revert => {revert()} )
+      rewiresTemp.splice(0,rewiresTemp.length-1)
     })
     after(() => {
-      drive.__set__('getPayslipFolderInfo', getPayslipFolderInfoOld)
+      rewiresPerm.forEach( revert => {revert()} )
+      rewiresPerm.splice(0,rewiresPerm.length-1)
     })
+  
 
     it('returns the expected fields', async () => {
 
-      const createFileStub = sinon.stub().resolves({webViewLink: 'newFileUrl123'})
+      stubHub.createFileStub.resolves({webViewLink: 'newFileUrl123'})
       
-      drive.__set__('createFile', createFileStub);
       const {fileUrl, folderUrl} = await uploadPayslip({localFileLocation: 'fileIsHere'})
 
       fileUrl.should.equal('newFileUrl123')
       folderUrl.should.equal('parentFolderUrl')
+
     })
 
     it('throws an error if the file cannot be created', async () => {
 
-      const createFileStub = sinon.stub().rejects()
+      stubHub.createFileStub.rejects()
       
-      drive.__set__('createFile', createFileStub);
       try {await uploadPayslip({localFileLocation: 'fileIsHere'})}
       catch (e) {
         e.message.should.eql('Error')
@@ -145,9 +162,7 @@ describe('The drive uploader', function () {
   describe('getKnownPayslips', () => {
 
     const getKnownPayslips = drive.getKnownPayslips
-    const listFilesOld = drive.__get__('listFiles');
-    const listFilesStub = sinon.stub()
-    const getPayslipFolderInfoOld = drive.__get__('getPayslipFolderInfo')
+
     const basicGoodlfsResp = [
       {name: '2001-01-01-PS1.pdf'},
       {name: '2002-02-02-PS2.pdf'},
@@ -159,38 +174,48 @@ describe('The drive uploader', function () {
       {date: '2003-03-03', companyName: 'PS3'}
     ]
 
+    const stubHub = {}
+    const rewiresTemp = []
+    const rewiresPerm = []
+
     before(() => {
-      drive.__set__('getPayslipFolderInfo', sinon.stub().resolves({id: 1000, url: 'parentFolderUrl'}))
-      drive.__set__('listFiles', listFilesStub);
+      stubHub.listFilesStub = sinon.stub()
+      rewiresPerm.push(
+        drive.__set__('getPayslipFolderInfo', sinon.stub().resolves({id: 1000, url: 'parentFolderUrl'})),
+        drive.__set__('listFiles', stubHub.listFilesStub)
+      )     
+    })
+    beforeEach(() => {
+      rewiresTemp.push(
+        drive.__set__('cachedFolderInfo', {}),
+        drive.__set__('createFile', stubHub.createFileStub)
+      )
     })
     afterEach(() => {
-      listFilesStub.reset()
+      for (const s in stubHub) {stubHub[s].reset()}
+      rewiresTemp.forEach( revert => {revert()} )
+      rewiresTemp.splice(0,rewiresTemp.length-1)
     })
     after(() => {
-      listFilesStub.restore()
-      drive.__set__('listFiles', listFilesOld);
-      drive.__set__('getPayslipFolderInfo', getPayslipFolderInfoOld)
+      for (const s in stubHub) {stubHub[s].restore()}
+      rewiresPerm.forEach( revert => {revert()} )
+      rewiresPerm.splice(0,rewiresPerm.length-1)
     })
 
+
     it('returns the expected fields', async () => {
-
-      listFilesStub.resolves(basicGoodlfsResp)
-      
+      stubHub.listFilesStub.resolves(basicGoodlfsResp)
       const gkp = await getKnownPayslips()
-
       gkp.should.eql(basicGoodgkpResp)
     })
 
 
     it('throws an error if listFiles cannot be contacted', async () => {
-
-      listFilesStub.rejects()
-
+      stubHub.listFilesStub.rejects()
       try {await getKnownPayslips()}
       catch (e) {
         e.message.should.equal('Error')
       }
-      
     })
   })
 });
