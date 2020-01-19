@@ -23,8 +23,12 @@
   },
   "homepage": "https://github.com/nigelsdtech/save-payslips#readme",
   "dependencies": {
-    "js-yaml": "^3.13.1",
+    "config": "^3.2.5",
+    "email-notification": "github:nigelsdtech/email-notification",
+    "gdrive-model": "github:nigelsdtech/gdrive-model",
+    "log4js": "^0.6.37",
     "portus-interact": "git://github.com/nigelsdtech/portus-interact.git",
+    "request": "^2.88.0",
     "request-promise-native": "^1.0.8"
   },
   "config": {
