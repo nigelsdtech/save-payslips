@@ -322,6 +322,16 @@ describe('SavePayslips', function () {
     })
 
     generateTestSuite ({
+      description: "Email trigger is not in use and using sync mode and there are no differences",
+      downloadedFileLocations: [],
+      gdriveCalls: 0,
+      uploadToGdrive: false,
+      uploadDetails: [],
+      updateEmailLabels: false,
+      sendCompletionNotice: false
+    })
+
+    generateTestSuite ({
       description: "Email trigger is not in use and using download mode",
       downloadMode: 'downloadLatest'
     })
