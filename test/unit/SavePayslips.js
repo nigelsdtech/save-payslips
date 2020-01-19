@@ -14,17 +14,16 @@ chai.should();
 
 var timeout = cfg.test.timeout.unit;
 
-
-function testAfter (stubs) {
-  afterEach(() => {stubs.forEach( (stub) => {stub.reset()  } )})
-  after(() =>     {stubs.forEach( (stub) => {stub.restore()} )})
+function testAfter   (stubHub) {
+  afterEach (() => { for (const key in stubHub) {stubHub[key].reset()  }})
+  after     (()=>  { for (const key in stubHub) {stubHub[key].restore()}})
 }
 
-async function createErrorTest(stub,fn) {
+async function createErrorTest(stub,fn, fnArgs) {
   const err = new Error('Stub error')
   stub.rejects(err)
   try {
-    const i = await fn()
+    const i = await fn(fnArgs)
   } catch (e) {
     e.message.should.eql(err.message)
   }
@@ -43,57 +42,81 @@ describe('SavePayslips', function () {
 
     const fn = sp.__get__('isProcessingRequired')
     const triggerChecker = require('../../lib/triggerChecker')
-    const tcIprStub = sinon.stub(triggerChecker,'isProcessingRequired')
-
-    testAfter([tcIprStub])
+    const stubHub = {};
+  
+    before(() => {
+      stubHub.tcIprStub = sinon.stub(triggerChecker,'isProcessingRequired')
+    })
+    
+    testAfter(stubHub)
 
     it('returns true if the trigger checker says so', async () => {
-     tcIprStub.resolves(true)
+     stubHub.tcIprStub.resolves(true)
      const i = await fn()
      i.should.eql(true)
     })
       
     it('returns false if the trigger checker says so', async () => {
-      tcIprStub.resolves(false)
+      stubHub.tcIprStub.resolves(false)
       const i = await fn()
       i.should.eql(false)
     })
     it('throws an error if the trigger checker goes wrong', async () => {
-      await createErrorTest(tcIprStub, fn)
+      await createErrorTest(stubHub.tcIprStub, fn)
     });
 
   });
 
 
   const payslipGetter = require(`../../lib/payslipGetter${cfg.payslipGetter}`)
-  const pgDlpStub = sinon.stub(payslipGetter,'downloadPayslip')
-  
 
-  describe('downloadLatestPayslip', () => {
+  describe('syncLatestPayslip', () => {
 
-    const fn = sp.__get__('downloadLatestPayslip')
+    const fn = sp.__get__('syncLatestPayslip')
+    const stubHub = {}
 
-    testAfter([pgDlpStub])
+    before(() => {
+      stubHub.pgDlpStub = sinon.stub(payslipGetter,'downloadPayslip')
+      stubHub.upStub = sinon.stub()
+    })
 
-    it('returns the location of the downloaded file', async () => {
-     pgDlpStub.resolves('/tmp/myNewFile.pdf')
-     const i = await fn()
-     i.should.eql(['/tmp/myNewFile.pdf'])
+    testAfter(stubHub)
+
+    it('calls the uploader with the new content', async () => {
+     
+      const f = '/tmp/myNewFile.pdf'
+      const uploadedFileDetails = {fileUrl: 'file.com', folderUrl: 'folder.com'}
+      
+      stubHub.pgDlpStub.resolves(f)
+      stubHub.upStub.withArgs(f).resolves(uploadedFileDetails)
+
+      const i = await fn({uploadFn: stubHub.upStub})
+
+      stubHub.upStub.calledWith(f).should.be.true     
+      i.should.eql([uploadedFileDetails])
     })
       
     it('throws an error if the download goes wrong', async () => {
-      await createErrorTest(pgDlpStub, fn)
+      await createErrorTest(stubHub.pgDlpStub, fn)
+    });
+
+    it('throws an error if the upload goes wrong', async () => {
+      
+      const f = '/tmp/myNewFile.pdf'
+      stubHub.pgDlpStub.resolves(f)
+
+      await createErrorTest(stubHub.upStub, fn, {uploadFn: stubHub.upStub})
+      stubHub.upStub.calledWith(f).should.be.true
     });
 
   });
 
 
-  describe('downloadSyncedPayslips', () => {
+  describe('syncAllPayslips', () => {
 
-    const fn = sp.__get__('downloadSyncedPayslips')
-    const drive     = require(`../../lib/driveUploader.js`)
-    const drGkpStub = sinon.stub(drive,'getKnownPayslips')
-    const pgGkpStub = sinon.stub(payslipGetter,'getKnownPayslips')
+    const fn    = sp.__get__('syncAllPayslips')
+    const drive = require(`../../lib/driveUploader.js`)
+    const stubHub = {}
 
     const filesInProvider = [
       {id:1, date:'2001-01-01'},
@@ -102,68 +125,144 @@ describe('SavePayslips', function () {
       {id:4, date:'2004-04-04'}
     ]
 
-    beforeEach(() => {
-      filesInProvider
-      .forEach(({id,date} = {}) => {
-        pgDlpStub
-        .withArgs({id: id, date: date, suffix: cfg.companyName})
-        .resolves(`/tmp/${date}-${cfg.companyName}.pdf`)
+    before(() => {
+      stubHub.drGkpStub = sinon.stub(drive,'getKnownPayslips')
+      stubHub.pgGkpStub = sinon.stub(payslipGetter,'getKnownPayslips')
+      stubHub.pgDlpStub = sinon.stub(payslipGetter,'downloadPayslip')
+      stubHub.upStub    = sinon.stub()
+    })
+
+    testAfter(stubHub)
+
+    it('calls the uploader with all files when the drive is empty', async () => {
+      stubHub.drGkpStub.resolves([])
+      stubHub.pgGkpStub.resolves(filesInProvider)
+
+      const uploadedFileDetails = [
+        {fileUrl: 'file1.com', folderUrl: 'folder1.com'},
+        {fileUrl: 'file2.com', folderUrl: 'folder2.com'},
+        {fileUrl: 'file3.com', folderUrl: 'folder3.com'},
+        {fileUrl: 'file4.com', folderUrl: 'folder4.com'}
+      ]
+
+      filesInProvider.forEach((fip,i) => {
+        
+        const f = `/tmp/${fip.date}-${cfg.companyName}.pdf`
+        stubHub.pgDlpStub
+        .withArgs({id: fip.id, date: fip.date, suffix: cfg.companyName})
+        .resolves(f)
+
+        stubHub.upStub
+        .withArgs(f)
+        .resolves({fileUrl: `file${i+1}.com`, folderUrl: `folder${i+1}.com`})
+      })
+      
+      const i = await fn({uploadFn: stubHub.upStub})
+
+      filesInProvider.forEach((fip) => {
+        const f = `/tmp/${fip.date}-${cfg.companyName}.pdf`
+        stubHub.upStub.calledWith(f).should.be.true
       })
 
+      i.should.eql(uploadedFileDetails)
+
     })
 
-    testAfter([pgDlpStub, drGkpStub, pgGkpStub])
-
-
-    it('downloads all files when the drive is empty', async () => {
-      drGkpStub.resolves([])
-      pgGkpStub.resolves(filesInProvider)
-      const i = await fn()
-      i.should.eql([
-        `/tmp/2001-01-01-${cfg.companyName}.pdf`,
-        `/tmp/2002-02-02-${cfg.companyName}.pdf`,
-        `/tmp/2003-03-03-${cfg.companyName}.pdf`,
-        `/tmp/2004-04-04-${cfg.companyName}.pdf`
-      ])
-    })
-
-    it('downloads only new files when the drive is not empty', async () => {
-      drGkpStub.resolves([
+    it('calls the uploader with only new files when the drive is not empty', async () => {
+      stubHub.drGkpStub.resolves([
         {date: '2001-01-01', companyName: 'FictionCorp'},
         {date: '2002-02-02', companyName: 'FictionCorp'},
         {date: '2003-03-03', companyName: 'OtherCo'}
       ])
-      pgGkpStub.resolves(filesInProvider)
-      const i = await fn()
-      i.should.eql([
-        `/tmp/2003-03-03-${cfg.companyName}.pdf`,
-        `/tmp/2004-04-04-${cfg.companyName}.pdf`
-      ])
+      stubHub.pgGkpStub.resolves(filesInProvider)
+
+      const uploadedFileDetails = [
+        {fileUrl: 'file3.com', folderUrl: 'folder3.com'},
+        {fileUrl: 'file4.com', folderUrl: 'folder4.com'}
+      ]
+
+      filesInProvider.forEach((fip,i) => {
+        const f = `/tmp/${fip.date}-${cfg.companyName}.pdf`
+        if(i >= 2 ) {
+          stubHub.pgDlpStub.withArgs({id: fip.id, date: fip.date, suffix: cfg.companyName}).resolves(f)
+          stubHub.upStub.withArgs(f).resolves({fileUrl: `file${i+1}.com`, folderUrl: `folder${i+1}.com`})
+        } else {
+          stubHub.pgDlpStub.withArgs({id: fip.id, suffix: cfg.companyName}).throws('You should not have gotten here')
+          stubHub.upStub.withArgs(f).throws('You should not have gotten here')
+        }
+      })
+      
+      const i = await fn({uploadFn: stubHub.upStub})
+
+      filesInProvider.forEach((fip,i) => {
+        const f = `/tmp/${fip.date}-${cfg.companyName}.pdf`
+        if(i >= 2 ) {
+          stubHub.upStub.calledWith(f).should.be.true
+        } else {
+          stubHub.upStub.calledWith(f).should.be.false
+        }
+      })
+
+      i.should.eql(uploadedFileDetails)
     })
 
 
-    it('does not download when the two are in sync', async () => {
-      drGkpStub.resolves([
+    it('does not call the uploader when the two are in sync', async () => {
+      stubHub.drGkpStub.resolves([
         {date: '2001-01-01', companyName: 'FictionCorp'},
         {date: '2002-02-02', companyName: 'FictionCorp'},
         {date: '2003-03-03', companyName: 'FictionCorp'},
         {date: '2004-04-04', companyName: 'FictionCorp'}
       ])
-      pgGkpStub.resolves(filesInProvider)
-      const i = await fn()
-      i.should.eql([])
-      pgDlpStub.called.should.be.false
+      stubHub.pgGkpStub.resolves(filesInProvider)
+
+      const uploadedFileDetails = []
+
+      filesInProvider.forEach((fip,i) => {
+        const f = `/tmp/${fip.date}-${cfg.companyName}.pdf`
+
+        stubHub.pgDlpStub.withArgs({id: fip.id, date: fip.date, suffix: cfg.companyName}).throws('You should not have gotten here')
+        stubHub.upStub.withArgs(f).throws('You should not have gotten here')
+      })
+      
+      const i = await fn({uploadFn: stubHub.upStub})
+
+      filesInProvider.forEach((fip,i) => {
+        const f = `/tmp/${fip.date}-${cfg.companyName}.pdf`
+        stubHub.upStub.calledWith(f).should.be.false
+      })
+
+      i.should.eql(uploadedFileDetails)
     })
 
       
     it('throws an error if the drive goes wrong', async () => {
-      await createErrorTest(drGkpStub, fn)
+      await createErrorTest(stubHub.drGkpStub, fn)
     })
 
     it('throws an error if the provider goes wrong', async () => {
-      await createErrorTest(pgGkpStub, fn)
+      await createErrorTest(stubHub.pgGkpStub, fn)
     })
 
+    it('throws an error if the uploader goes wrong', async () => {
+      stubHub.drGkpStub.resolves([
+        {date: '2001-01-01', companyName: 'FictionCorp'},
+        {date: '2002-02-02', companyName: 'FictionCorp'},
+        {date: '2003-03-03', companyName: 'FictionCorp'}
+      ])
+      stubHub.pgGkpStub.resolves(filesInProvider)
+
+      const uploadedFileDetails = [
+        {fileUrl: 'file4.com', folderUrl: 'folder4.com'}
+      ]
+
+      const [fid, fdate, cn] = [4, '2004-04-04', cfg.companyName]
+      const f = `/tmp/${fdate}-${cn}.pdf`
+      stubHub.pgDlpStub.withArgs({id: fid, date: fdate, suffix: cn}).resolves(f)
+
+      await createErrorTest(stubHub.upStub, fn, {uploadFn: stubHub.upStub})
+      stubHub.upStub.calledWith(f).should.be.true
+    })
 
   });
 
@@ -173,15 +272,13 @@ describe('SavePayslips', function () {
     const tc = require('../../lib/triggerChecker')
     const rp = require('../../lib/reporter')
 
+
     function generateTestSuite ({
       description,
       only = false,
       checkForProcessing = false,
       isProcessingRequired = false,
       downloadMode = 'sync',
-      downloadedFileLocations = ['file1', 'file2'],
-      uploadToGdrive = true,
-      gdriveCalls = 2,
       uploadDetails = [{fileUrl: 'file1.com', folderUrl: 'folder1.com'}, {fileUrl: 'file2.com', folderUrl: 'folder2.com'}],
       updateEmailLabels = false,
       sendCompletionNotice = true,
@@ -191,33 +288,38 @@ describe('SavePayslips', function () {
       const desc = (only)? describe.only: describe; 
       desc(description, () => {
 
-        const stubActivations = []
-        const stubs = {}
+        const rewireStubs = []
+        const stubHub = {}
 
         before(async () => {
 
-          stubs.iprStub = sinon.stub().resolves(isProcessingRequired)
-          stubs.dspStub = sinon.stub().resolves(downloadedFileLocations)
-          stubs.dlpStub = sinon.stub().resolves(downloadedFileLocations)
-          stubs.uptdgStub = sinon.stub()
+          stubHub.iprStub   = sinon.stub().resolves(isProcessingRequired)
+          stubHub.sapStub   = sinon.stub().resolves(uploadDetails)
+          stubHub.slpStub   = sinon.stub().resolves(uploadDetails)
           
-          downloadedFileLocations.forEach((fileLocation, i) => {
-            stubs.uptdgStub
-            .withArgs(fileLocation)
-            .resolves(uploadDetails[i])
-          })
+          stubHub.ulStub    = sinon.stub(tc, 'updateLabels').resolves('')
           
-          stubs.ulStub = sinon.stub(tc, 'updateLabels').resolves('')
-          stubs.scnStub = sinon.stub(rp, 'sendCompletionNotice')
-          if (sendCompletionNotice) {stubs.scnStub.withArgs(uploadDetails).returns()}
-          stubs.scnStub.returns()
-          stubs.heStub = sinon.stub(rp, 'handleError').returns()
+          
+          stubHub.scnStub   = sinon.stub(rp, 'sendCompletionNotice')
 
-          stubActivations.push(
-            sp.__set__('isProcessingRequired',   stubs.iprStub),
-            sp.__set__('downloadSyncedPayslips', stubs.dspStub),
-            sp.__set__('downloadLatestPayslip',  stubs.dlpStub),
-            sp.__set__('uploadPayslipToGdrive',  stubs.uptdgStub)
+          if (sendCompletionNotice) {
+            stubHub.scnStub.withArgs(uploadDetails).returns()
+          } else {
+            stubHub.scnStub.throws('You should not have gotten here')
+          }
+
+          stubHub.heStub = sinon.stub(rp, 'handleError')
+          if (sendErrorNotice) {
+            stubHub.heStub.returns()
+          } else {
+            stubHub.heStub.throws('You should not have gotten here')
+          }
+          
+
+          rewireStubs.push(
+            sp.__set__('isProcessingRequired',  stubHub.iprStub),
+            sp.__set__('syncAllPayslips',       stubHub.sapStub),
+            sp.__set__('syncLatestPayslip',     stubHub.slpStub)
           )
 
           await fn({
@@ -227,75 +329,59 @@ describe('SavePayslips', function () {
         })
  
         after(() => {
-          for (const stub in stubs) {
-            stubs[stub].reset();
+          for (const key in stubHub) {
+            stubHub[key].reset();
+            if (stubHub[key].restore) stubHub[key].restore();
           }
-          stubs.ulStub.restore()
-          stubs.scnStub.restore()
-          stubs.heStub.restore()
-
-          stubActivations.forEach( (revert) => {revert()} )
-          stubActivations.splice(0,stubActivations.length-1)
+          rewireStubs.forEach( revert => {revert()} )
+          rewireStubs.splice(0,rewireStubs.length-1)
         })
 
         if (checkForProcessing) {
-          it('Checks for processing', () => {stubs.iprStub.calledOnce.should.be.true})
+          it('Checks for processing', () => {stubHub.iprStub.calledOnce.should.be.true})
         } else {
-          it('Does not check for processing', () => {stubs.iprStub.called.should.be.false})
+          it('Does not check for processing', () => {stubHub.iprStub.called.should.be.false})
         }
 
         switch(downloadMode) {
           case 'sync': {
             it('Downloads the payslips', () => {
-              stubs.dspStub.calledOnce.should.be.true
-              stubs.dlpStub.called.should.be.false
+              stubHub.sapStub.calledOnce.should.be.true
+              stubHub.slpStub.called.should.be.false
             })
             break;
           }
           case 'downloadLatest': {
             it('Downloads the payslips', () => {
-              stubs.dlpStub.calledOnce.should.be.true
-              stubs.dspStub.called.should.be.false
+              stubHub.slpStub.calledOnce.should.be.true
+              stubHub.sapStub.called.should.be.false
             })
             break;
           }
           default : {
             it('Does not attempt a download', () => {
-              stubs.dspStub.called.should.be.false
-              stubs.dlpStub.called.should.be.false
+              stubHub.sapStub.called.should.be.false
+              stubHub.slpStub.called.should.be.false
             })
           }
         }
 
-        if (uploadToGdrive) {
-          it('Uploads the files to google drive', () => {
-            downloadedFileLocations.forEach((fileLocation, i) => {
-              stubs.uptdgStub
-              .calledWith(fileLocation)
-              .should.be.true
-            })
-            stubs.uptdgStub.callCount.should.eql(gdriveCalls)
-          })
-        } else {
-          it('Does not upload to google drive', () => {stubs.uptdgStub.called.should.be.false})
-        }
-
         if (updateEmailLabels) {
-          it('Updates the label on the email', () => {stubs.ulStub.called.should.be.true})
+          it('Updates the label on the email', () => {stubHub.ulStub.called.should.be.true})
         } else {
-          it('Does not update the label on the email', () => {stubs.ulStub.called.should.be.false})
+          it('Does not update the label on the email', () => {stubHub.ulStub.called.should.be.false})
         }
 
         if (sendCompletionNotice) {
-          it('Sends a completion notice', () => {stubs.scnStub.calledWith({uploadedFileDetails: uploadDetails}).should.be.true})
+          it('Sends a completion notice', () => {stubHub.scnStub.calledWith({uploadedFileDetails: uploadDetails}).should.be.true})
         } else {
-          it('Does not send a completion notice', () => {stubs.scnStub.called.should.be.false})
+          it('Does not send a completion notice', () => {stubHub.scnStub.called.should.be.false})
         }
 
         if (sendErrorNotice) {
-          it('Sends an error notice', () => {stubs.heStub.called.should.be.true})
+          it('Sends an error notice', () => {stubHub.heStub.called.should.be.true})
         } else {
-          it('Does not send an error notice', () => {stubs.heStub.called.should.be.false})
+          it('Does not send an error notice', () => {stubHub.heStub.called.should.be.false})
         }
       })  
     }
@@ -305,7 +391,6 @@ describe('SavePayslips', function () {
       checkForProcessing: true,
       isProcessingRequired: false,
       downloadMode: 'none',
-      uploadToGdrive: false,
       updateEmailLabels: false,
       sendCompletionNotice: false
     });
@@ -323,9 +408,6 @@ describe('SavePayslips', function () {
 
     generateTestSuite ({
       description: "Email trigger is not in use and using sync mode and there are no differences",
-      downloadedFileLocations: [],
-      gdriveCalls: 0,
-      uploadToGdrive: false,
       uploadDetails: [],
       updateEmailLabels: false,
       sendCompletionNotice: false
@@ -339,8 +421,6 @@ describe('SavePayslips', function () {
     generateTestSuite ({
       description: "Using a bad download mode",
       downloadMode: 'somethingBad',
-      uploadToGdrive: false,
-      gdriveCalls: 0,
       updateEmailLabels: false,
       sendCompletionNotice: false,
       sendErrorNotice: true,
@@ -352,18 +432,22 @@ describe('SavePayslips', function () {
 
     const fn = sp.__get__('uploadPayslipToGdrive')
     const drive     = require(`../../lib/driveUploader.js`)
-    const drUpStub = sinon.stub(drive,'uploadPayslip')
+    const stubHub = {}
 
-    testAfter([drUpStub])
+    before(() => {
+      stubHub.drUpStub = sinon.stub(drive,'uploadPayslip')
+    })
+
+    testAfter(stubHub)
 
     it('returns the url of the uploaded file', async () => {
-      drUpStub.resolves({fileUrl: 'www.fileUrl.com', folderUrl: 'www.parentUrl.com'})
+      stubHub.drUpStub.resolves({fileUrl: 'www.fileUrl.com', folderUrl: 'www.parentUrl.com'})
       const i = await fn()
       i.should.eql({fileUrl: 'www.fileUrl.com', folderUrl: 'www.parentUrl.com'})
     })
       
     it('throws an error if the upload goes wrong', async () => {
-      await createErrorTest(drUpStub, fn)
+      await createErrorTest(stubHub.drUpStub, fn)
     });
 
   });
