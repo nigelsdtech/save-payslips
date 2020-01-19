@@ -5,6 +5,8 @@ if [ -f ~/bin/setup_node_env.sh ]; then
 fi
 
 
+NODE_ENV="production"
+
 # Default instance
 NODE_APP_INSTANCE="needsToBeSet"
 
