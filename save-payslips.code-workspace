@@ -5,6 +5,14 @@
 		}
 	],
 	"settings": {
-		"rest-client.previewOption": "exchange"
+		"rest-client.previewOption": "exchange",
+		"files.exclude": {
+			"**/logs": true,
+			"**/node_modules": true
+		},
+		"files.watcherExclude": {
+			"**/logs": true,
+			"**/node_modules": true
+		}
 	}
 }
