@@ -197,7 +197,7 @@ describe('The drive uploader', function () {
       rewiresTemp.splice(0,rewiresTemp.length-1)
     })
     after(() => {
-      for (const s in stubHub) {stubHub[s].restore()}
+      for (const s in stubHub) {if(stubHub[s].wrappedMethod) stubHub[s].restore()}
       rewiresPerm.forEach( revert => {revert()} )
       rewiresPerm.splice(0,rewiresPerm.length-1)
     })

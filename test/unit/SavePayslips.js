@@ -16,7 +16,7 @@ var timeout = cfg.test.timeout.unit;
 
 function testAfter   (stubHub) {
   afterEach (() => { for (const key in stubHub) {stubHub[key].reset()  }})
-  after     (()=>  { for (const key in stubHub) {stubHub[key].restore()}})
+  after     (()=>  { for (const key in stubHub) { if(stubHub[key].wrappedMethod) stubHub[key].restore()} })
 }
 
 async function createErrorTest(stub,fn, fnArgs) {
