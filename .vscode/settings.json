@@ -3,6 +3,13 @@
         "NODE_ENV": "test",
         "NODE_APP_INSTANCE": "fictionCorp"
     },
-    "mochaExplorer.pruneFiles": true,
-    "mochaExplorer.files": "test/unit/*.js"
+    "mochaExplorer.files": "test/unit/**/*.js",
+    "files.watcherExclude": {
+        "**/logs/**": true
+    },
+    "search.exclude": {
+        "**/logs/**": true
+    },
+    "mochaExplorer.autoload": false,
+    "mochaExplorer.pruneFiles": true
 }

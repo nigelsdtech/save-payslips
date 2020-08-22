@@ -68,7 +68,7 @@ var recipientGdrive = new gdriveModel({
 });
 
 const timeout = (cfg.test.timeout.functional)
-
+const emailWaitTime = (cfg.test.emailWaitTime || 5000)
 
 /*
  * Some utility functions
@@ -177,13 +177,13 @@ describe('Running the script when processing is required', function () {
     })
     .then( () => {
       console.log('Setups complete.')
-      return wait(3000)
+      return wait(emailWaitTime)
     })
     .then( async () => {
       return await SavePayslips()
     })
     .then( () => {
-      return wait(3000)
+      return wait(emailWaitTime)
     })
 
   });
@@ -321,11 +321,11 @@ describe('Running the script when there is an error', function () {
 
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-    await wait(3000) 
+    await wait(emailWaitTime) 
     
     await SavePayslips()
 
-    await wait(3000)
+    await wait(emailWaitTime)
 
     return
   });

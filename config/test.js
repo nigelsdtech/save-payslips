@@ -25,7 +25,7 @@ module.exports = {
   drive: {
     payslipsFolderName: "Payslips-test"
   },
-
+  
   triggerEmail: {
     subject: "This is a trigger email"
   },
@@ -65,5 +65,5 @@ module.exports = {
       tokenFile:        defer( function (cfg) { return `${cfg.auth.tokenFile}`.replace('.json', `-reporterReceiver.json`) } ),
       tokenFileDir:     defer( function (cfg) { return cfg.auth.credentialsDir } )
     }
-  },
+  }
 }
