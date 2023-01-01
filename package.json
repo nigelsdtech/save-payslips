@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/nigelsdtech/save-payslips#readme",
   "dependencies": {
-    "config": "^3.2.5",
+    "config": "^3.3.8",
     "email-notification": "github:nigelsdtech/email-notification",
     "gdrive-model": "github:nigelsdtech/gdrive-model",
     "log4js": "^0.6.37",
